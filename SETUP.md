@@ -208,16 +208,31 @@ one, and a row should appear on that event's own tab with status **Enquiry**.
 
 ## Step 6 — Connect Stripe
 
-### 6a. Get your test key
+### 6a. Get the sandbox's secret key
+
+Bookings go to whichever Stripe account the secret key belongs to. To send them
+to the sandbox, use the sandbox's key.
+
+Your Stripe login has two accounts:
+
+| Account | Mode | ID | Use it for |
+|---|---|---|---|
+| **Muslims of Ihsan  sandbox** | test | `acct_1U9qSoClB1YLIIj2` | Setting up and testing. No real money moves |
+| **Muslims of Ihsan** | live | `acct_1U9qShEFazCPe61k` | Real bookings, once you are happy |
+
+Start with the sandbox:
 
 1. Sign in at [dashboard.stripe.com](https://dashboard.stripe.com).
-2. Make sure the **Test mode** toggle (top right) is **ON**.
+2. Open the account switcher (top left) and choose **Muslims of Ihsan  sandbox**.
+   Check the ID matches `acct_1U9qSoClB1YLIIj2` — that is the sandbox.
 3. Go to **Developers → API keys**.
-4. Under **Secret key**, click **Reveal test key** and copy it. It starts with
-   `sk_test_`.
+4. Under **Secret key**, click **Reveal** and copy it. It starts with `sk_test_`.
+
+> Nothing in the code names an account. The key alone decides where bookings go,
+> which is why swapping the key in step 6e is all it takes to go live.
 
 > The secret key is the password to your money. It only ever goes in Script
-> Properties — never in `index.html`, never in a commit, never in a message.
+> Properties — never in `index.html`, never in a commit, never pasted into a chat.
 
 ### 6b. Give it to the script
 
@@ -253,7 +268,8 @@ Other cards worth trying: `4000 0000 0000 9995` is declined, and
 
 When you're happy:
 
-1. Stripe dashboard → switch **Test mode OFF**.
+1. Stripe dashboard → account switcher → **Muslims of Ihsan** (the live one,
+   `acct_1U9qShEFazCPe61k`).
 2. Complete Stripe's account activation (bank details, ID) if you haven't.
 3. **Developers → API keys** → copy the **live** secret key (`sk_live_...`).
 4. Replace `STRIPE_SECRET_KEY` in Script Properties with the live key.
@@ -398,6 +414,7 @@ and emailed; they just come in as enquiries for you to invoice by hand.
 | Only one of you gets the emails | Check the other address's spam folder, then the `NOTIFY_EMAIL` property and `DEFAULT_OWNERS` in `Code.gs` |
 | Emails never arrive | Check spam first. Gmail allows ~100 script emails a day, Workspace ~1,500 — each booking emails both owners and the attendee |
 | Stripe says "No such API key" | Test key with live mode, or vice versa. Also make sure you redeployed after changing it |
+| Payments land in the wrong Stripe account | The key decides the account. `sk_test_…` from the sandbox goes to the sandbox; check which account the dashboard switcher was on when you copied it |
 | Paid on Stripe but the sheet says awaiting | The 15-minute sweep will catch it. To force it, run **`reconcilePendingBookings`** by hand |
 | Changed the code, nothing changed | You must **Deploy → Manage deployments → New version** every time |
 
