@@ -643,6 +643,28 @@ function placesOnSheet_(sheet, eventId) {
    Stripe
    ========================================================================== */
 
+/**
+ * Stripe wants form values as strings. Apps Script numbers are Java doubles, so
+ * a plain 1 reaches the wire as "1.0" and Stripe rejects it with
+ * "Invalid integer: 1.0". Everything is stringified before it is sent.
+ */
+function formEncode_(payload) {
+  var form = {};
+
+  Object.keys(payload).forEach(function (key) {
+    var value = payload[key];
+
+    if (typeof value === 'number') {
+      form[key] = value === Math.floor(value) ? value.toFixed(0) : String(value);
+      return;
+    }
+
+    form[key] = String(value);
+  });
+
+  return form;
+}
+
 function stripe_(path, payload, method) {
   var options = {
     method: method || (payload ? 'post' : 'get'),
@@ -651,7 +673,7 @@ function stripe_(path, payload, method) {
   };
 
   if (payload) {
-    options.payload = payload;
+    options.payload = formEncode_(payload);
   }
 
   var response = UrlFetchApp.fetch(STRIPE_API + path, options);
