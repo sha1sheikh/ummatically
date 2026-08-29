@@ -16,9 +16,8 @@ Visitor clicks "Book Now"
         ▼
   Form on the website  ──POST──►  Google Apps Script (your backend)
                                         │
-                                        ├─► writes a row on the Bookings sheet
-                                        ├─► emails both organisers
-                                        └─► emails the attendee
+                                        ├─► holds the booking on "Pending payment"
+                                        └─► emails the attendee a "finish up" note
                                         │
                                         ▼
                                   Stripe Checkout  ──pays──►  back to the site
@@ -26,15 +25,18 @@ Visitor clicks "Book Now"
                                         ▼
                           Apps Script asks Stripe "did this really pay?"
                                         │
-                                        └─► flips the row to Paid, sends the receipt
+                                        ├─► moves the booking to its event's tab
+                                        ├─► emails BOTH organisers
+                                        └─► emails the attendee their confirmation
 ```
 
-**One thing I did differently from what you asked.** You described the email
-arriving first and *then* triggering something to fill the spreadsheet. I've had
-Apps Script write the row and send the email at the same moment instead. It's the
-same ingredients, but nothing has to parse an email to find the data, so a
-reworded subject line or a message landing in spam can't silently lose a booking.
-You still get every email exactly as you wanted.
+**Nothing reaches an event's tab until the money arrives.** An event's tab is a
+list of people who are actually coming. An unfinished booking waits on the
+**Pending payment** tab, and you are emailed when the payment lands, not before.
+
+Bookings are written straight to the sheet rather than parsed back out of an
+email — same ingredients, but a reworded subject line or a message landing in
+spam can't silently lose one.
 
 ---
 
@@ -62,7 +64,10 @@ Once step 3 has run, it will have:
 |---|---|
 | **Events** | The index: capacity and price per event, and which tab holds its bookings. The only tab you edit by hand |
 | **Summary** | Live totals across every event: paid, awaiting payment, revenue, places left |
-| **One tab per event** | Named after the event — bookings for that event and nothing else |
+| **One tab per event** | Named after the event — people who have paid for it, and nobody else |
+| **Pending payment** | Bookings part-way through checkout. They move to their event's tab once paid, or expire after two days |
+| **All bookings** | Every booking across every event, in one list |
+| **People** | One row per person: what they've booked, what they've paid, dietary and medical notes |
 | **Read me** | House rules and what a booking row looks like |
 
 Bookings are kept apart, one tab per event, so you can hand a single event's
@@ -113,6 +118,7 @@ These are optional — set one only if you want to override what's already in
 | `NOTIFY_EMAIL` | who gets booking alerts (comma-separated for several people) |
 | `ORG_NAME` | the name on outgoing emails, currently `Ummatically` |
 | `CURRENCY` | the currency, currently `gbp` |
+| `BOOKING_MODE` | set to `record-all` to put unpaid attempts straight on the event tab and email you immediately. The default, `paid-only`, holds them back |
 
 **Booking alerts already go to both of you:**
 `abuobaydahalyafawe@gmail.com` and `shawon.sheikh247@gmail.com`. Attendees who
@@ -259,19 +265,24 @@ If someone pays but shuts the browser before being redirected back, the sheet
 would sit on "Awaiting payment" forever. A timer fixes that.
 
 1. Apps Script editor → function dropdown → **`installTriggers`** → **Run**.
-2. That's it. Every 15 minutes the script asks Stripe about anything still
-   pending, marks the paid ones **Paid**, and marks anything unpaid after two
-   days **Expired**.
+2. That's it. Three timers go in:
 
-You can see it under **⏰ Triggers** in the left sidebar.
+| Timer | What it does |
+|---|---|
+| Every 15 minutes | Asks Stripe about anything still pending. Paid ones move to their event tab; anything unpaid after two days is marked **Expired** and its places released |
+| Hourly | Rebuilds the **All bookings** and **People** tabs |
+| Daily, 4am | Reads the events off your website into the Events tab (see below) |
+
+You can see them under **⏰ Triggers** in the left sidebar.
 
 ---
 
 ## Running it day to day
 
-### Adding or changing an event
+### Changing the events on your website
 
-Two places have to agree, and they agree on the **Event ID**.
+Edit `index.html` as normal, then let the sheet catch up. Two places have to
+agree, and they agree on the **Event ID**.
 
 **In `index.html`**, each event's button carries its own details:
 
@@ -289,14 +300,27 @@ Two places have to agree, and they agree on the **Event ID**.
 
 `data-event-price` is the price **per place**, digits only — `115`, not `£115`.
 
-**On the Events tab**, add a row with the *same* `Event ID`, plus the event name,
-capacity and price — the four blue columns. Capacity is what stops overbooking:
-once Places Held reaches it, the form turns people away and tells them to email
-you for the waiting list. Leave Capacity blank for an uncapped event.
+**Then run `syncEventsFromSite`** from the Apps Script function dropdown. It
+reads your published site and brings the Events tab into line:
 
-Its bookings tab appears by itself, either when you next run `setUp` or when the
-first booking arrives. The **Bookings Tab** column then names it. Everything
-right of Notes counts itself from that tab.
+| On the site | In the sheet |
+|---|---|
+| A new event | Gets an Events row and its own bookings tab. Set its Capacity by hand |
+| A renamed or repriced event | Name and Price updated in place. Its tab and bookings are untouched |
+| An event you removed | Left alone and reported in the log. Past events keep their bookings |
+
+It never overwrites **Capacity** — that column is yours.
+
+It runs itself daily at 4am once you've done step 7, so you can also just edit
+the site and leave it. Run it by hand when you want the sheet updated now.
+
+> It reads the **published** site at `SITE_URL`, not your local file. Publish
+> your changes first, or it will keep reading the old events.
+
+**Capacity is the one thing you set in the sheet, not on the site.** The
+"30 spots remaining" text on the page is just text — the real limit is the
+Capacity column. Once Places Held reaches it, the form turns people away and
+points them at you for the waiting list. Leave it blank for no limit.
 
 > An event booked from the site but missing from the Events tab is added for you,
 > with a tab of its own and no capacity limit. So a typo in `data-event-id`
@@ -304,6 +328,34 @@ right of Notes counts itself from that tab.
 
 > Renaming a bookings tab is fine, as long as you change its **Bookings Tab**
 > cell to match. Otherwise the script will make a fresh tab under the old name.
+
+### Seeing everyone in one place
+
+Bookings are split by event, so three tabs pull them back together:
+
+- **All bookings** — every booking across every event, newest first, filterable.
+- **People** — one row per person, matched on email. Their bookings, places,
+  total paid, what's outstanding, which events they've been to, and their
+  dietary and medical notes gathered up. This is your attendee directory: search
+  a name and you have everything about them.
+- **Summary** — the numbers rather than the names.
+
+Both rebuild themselves hourly, and immediately whenever a payment lands. They
+are generated, so anything you type on them is overwritten — edit a booking on
+its own event tab.
+
+To rebuild them now, run **`rebuildDirectory`**.
+
+**In Stripe, the equivalent is Customers.** Every payer is recorded as a proper
+Stripe customer, so **Dashboard → Customers** lists everyone who has ever paid
+you, with their payment history, total spend, and any refunds. Each payment is
+also labelled with the event and the attendee's name, so **Payments** reads as a
+list of bookings rather than anonymous amounts.
+
+Use whichever fits the question: **Stripe** for anything about money — who paid,
+when, how much, refunds, payouts. **The sheet** for anything about running the
+event — dietary needs, medical notes, emergency contacts, who's coming to what.
+Deliberately, the medical and emergency details stay out of Stripe.
 
 ### Statuses
 

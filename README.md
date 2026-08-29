@@ -13,7 +13,8 @@ takes event bookings and payments.
 The live spreadsheet is
 **[Ummatically Bookings](https://docs.google.com/spreadsheets/d/1fYhsyCe3vG76-2qtCUP9ZS_TNwexZDnhGesC2ggh93Y/edit)**
 in Google Drive. Running `setUp` in the Apps Script project builds an Events index, a Summary, a
-Read me, and one bookings tab per event — each event's bookings kept separate.
+Read me, one bookings tab per event, a Pending payment tab, and two gathered
+views — **All bookings** and **People** — so everyone can be seen in one place.
 
 Booking alerts go to `abuobaydahalyafawe@gmail.com` and
 `shawon.sheikh247@gmail.com` — change that via `DEFAULT_OWNERS` in
@@ -21,9 +22,17 @@ Booking alerts go to `abuobaydahalyafawe@gmail.com` and
 
 ## Booking flow
 
-Someone clicks **Book Now** → fills the form on the page → Apps Script writes a
-row to the sheet, emails you and emails them → Stripe Checkout takes payment →
-they land back on the site and the row flips to **Paid**.
+Someone clicks **Book Now** → fills the form on the page → the booking waits on
+**Pending payment** and they get a "finish up" email → Stripe Checkout takes the
+payment → the booking moves onto its event's tab, both organisers are emailed,
+and the attendee gets their confirmation.
+
+An event's tab therefore lists people who have actually paid. Set
+`BOOKING_MODE=record-all` to record and email every attempt instead.
+
+`syncEventsFromSite` reads the Book Now buttons off the published site and
+brings the Events tab into line — new events, renames and price changes — daily,
+or on demand.
 
 Until `endpoint` is filled in (SETUP.md step 5) the buttons fall back to the old
 Google Form, so the site is never left with a dead button.

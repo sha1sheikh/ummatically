@@ -634,6 +634,9 @@ function createCheckoutSession_(data, ref) {
 
   var payload = {
     'mode': 'payment',
+    // Without this, Checkout records a one-off "guest" and the payer never
+    // appears under Customers in the Stripe dashboard.
+    'customer_creation': 'always',
     'success_url': site + separator + 'booking=success&session_id={CHECKOUT_SESSION_ID}',
     'cancel_url': site + separator + 'booking=cancelled',
     'client_reference_id': ref,
@@ -646,7 +649,9 @@ function createCheckoutSession_(data, ref) {
     'metadata[eventId]': data.eventId,
     'metadata[name]': data.name,
     'metadata[phone]': data.phone,
-    'metadata[places]': data.places
+    'metadata[places]': data.places,
+    'payment_intent_data[description]': data.eventTitle + ' — ' + data.name
+      + ' (' + data.places + ' place' + (data.places === 1 ? '' : 's') + ')'
   };
 
   var description = [data.eventDate, data.eventLocation].filter(String).join(' · ');
@@ -719,6 +724,8 @@ function markPaid_(session) {
     emailAttendee_(booking, ref, 'paid');
     notifyOwner_(booking, ref, 'PAID');
   }
+
+  rebuildDirectory();
 
   return { ref: ref };
 }
@@ -972,6 +979,7 @@ function setUp() {
   });
 
   buildSummary_(spreadsheet);
+  rebuildDirectory();
   buildReadMe_(spreadsheet);
 
   var blank = spreadsheet.getSheetByName('Sheet1');
@@ -1000,7 +1008,7 @@ function setUp() {
 
 /** Events, Summary and Read me first; the per-event tabs after them. */
 function orderTabs_(spreadsheet) {
-  ['Read me', 'Summary', EVENTS_SHEET].forEach(function (name) {
+  ['Read me', PEOPLE_SHEET, ALL_SHEET, 'Summary', EVENTS_SHEET].forEach(function (name) {
     var sheet = spreadsheet.getSheetByName(name);
 
     if (sheet) {
@@ -1340,6 +1348,218 @@ function buildReadMe_(spreadsheet) {
   ]]).setFontFamily('Arial').setFontSize(9);
 }
 
+/* ==========================================================================
+   Everyone in one place
+
+   Bookings live on their event's tab. These two tabs gather them up:
+   "All bookings" is every booking across every event, and "People" is one row
+   per person. Both are rebuilt from scratch, so nothing you type on them
+   survives — treat them as read-only.
+   ========================================================================== */
+
+var ALL_SHEET = 'All bookings';
+var PEOPLE_SHEET = 'People';
+
+var PEOPLE_COLUMNS = [
+  'Name', 'Email', 'Phone', 'Bookings', 'Places', 'Paid', 'Outstanding',
+  'Events', 'Dietary', 'Medical', 'Emergency Contact', 'First Booked', 'Last Booked'
+];
+
+/** Every booking row across every tab, newest first. */
+function allBookings_() {
+  var spreadsheet = book_();
+  var rows = [];
+
+  [PENDING_SHEET].concat(eventTabs_()).forEach(function (name) {
+    var sheet = spreadsheet.getSheetByName(name);
+
+    if (!sheet || sheet.getLastRow() < 2) {
+      return;
+    }
+
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, COLUMNS.length).getValues()
+      .forEach(function (row) {
+        if (row[columnIndex_('Reference') - 1]) {
+          rows.push(row);
+        }
+      });
+  });
+
+  var stamp = columnIndex_('Timestamp') - 1;
+
+  rows.sort(function (a, b) {
+    return new Date(b[stamp]).getTime() - new Date(a[stamp]).getTime();
+  });
+
+  return rows;
+}
+
+/** Rebuilds the "All bookings" and "People" tabs from the event tabs. */
+function rebuildDirectory() {
+  var spreadsheet = book_();
+  var rows = allBookings_();
+
+  writeAllBookings_(spreadsheet, rows);
+  writePeople_(spreadsheet, rows);
+
+  var report = rows.length + ' booking(s) gathered into "' + ALL_SHEET + '" and "'
+    + PEOPLE_SHEET + '".';
+
+  console.log(report);
+  return report;
+}
+
+function readOnlyNotice_(sheet, text) {
+  sheet.getRange(1, 1).setValue(text)
+    .setFontFamily('Arial').setFontSize(9).setFontStyle('italic').setFontColor(GREY);
+  sheet.setRowHeight(1, 20);
+}
+
+function writeAllBookings_(spreadsheet, rows) {
+  var sheet = tab_(spreadsheet, ALL_SHEET);
+
+  sheet.clear();
+  sheet.clearConditionalFormatRules();
+
+  if (sheet.getFilter()) {
+    sheet.getFilter().remove();
+  }
+
+  readOnlyNotice_(sheet, 'Rebuilt automatically — edits here are overwritten. '
+    + 'Change a booking on its own event tab.');
+
+  sheet.getRange(2, 1, 1, COLUMNS.length).setValues([COLUMNS])
+    .setFontFamily('Arial').setFontSize(10).setFontWeight('bold')
+    .setFontColor('#ffffff').setBackground(NAVY).setWrap(true);
+  sheet.setFrozenRows(2);
+
+  if (rows.length) {
+    sheet.getRange(3, 1, rows.length, COLUMNS.length).setValues(rows)
+      .setFontFamily('Arial').setFontSize(10);
+    sheet.getRange(3, columnIndex_('Timestamp'), rows.length, 1)
+      .setNumberFormat('yyyy-mm-dd hh:mm');
+    sheet.getRange(3, columnIndex_('Unit Price'), rows.length, 2)
+      .setNumberFormat('£#,##0.00');
+    sheet.getRange(2, 1, rows.length + 1, COLUMNS.length).createFilter();
+  }
+
+  sheet.setTabColor('#3f7f5f');
+}
+
+function writePeople_(spreadsheet, rows) {
+  var sheet = tab_(spreadsheet, PEOPLE_SHEET);
+  var people = {};
+  var order = [];
+
+  var at = function (row, name) {
+    return row[columnIndex_(name) - 1];
+  };
+
+  rows.forEach(function (row) {
+    var email = String(at(row, 'Email') || '').trim().toLowerCase();
+
+    if (!email) {
+      return;
+    }
+
+    if (!people[email]) {
+      people[email] = {
+        name: at(row, 'Name'), email: email, phone: at(row, 'Phone'),
+        bookings: 0, places: 0, paid: 0, outstanding: 0,
+        events: [], dietary: [], medical: [], emergency: '',
+        first: null, last: null
+      };
+      order.push(email);
+    }
+
+    var person = people[email];
+    var status = String(at(row, 'Status'));
+    var places = parseInt(at(row, 'Places'), 10) || 0;
+    var total = parseFloat(at(row, 'Total')) || 0;
+    var when = new Date(at(row, 'Timestamp'));
+
+    person.bookings++;
+
+    if (CLOSED_STATUSES.indexOf(status) === -1) {
+      person.places += places;
+    }
+    if (status === 'Paid') {
+      person.paid += total;
+    }
+    if (status === 'Awaiting payment') {
+      person.outstanding += total;
+    }
+
+    [['events', 'Event'], ['dietary', 'Dietary'], ['medical', 'Medical']].forEach(function (pair) {
+      var value = String(at(row, pair[1]) || '').trim();
+
+      if (value && person[pair[0]].indexOf(value) === -1) {
+        person[pair[0]].push(value);
+      }
+    });
+
+    var emergency = [at(row, 'Emergency Contact'), at(row, 'Emergency Phone')]
+      .filter(String).join(' — ');
+
+    if (emergency) {
+      person.emergency = emergency;
+    }
+
+    // The most recent booking has the freshest contact details.
+    if (!person.last || when > person.last) {
+      person.last = when;
+      person.name = at(row, 'Name') || person.name;
+      person.phone = at(row, 'Phone') || person.phone;
+    }
+    if (!person.first || when < person.first) {
+      person.first = when;
+    }
+  });
+
+  var table = order.map(function (email) {
+    var person = people[email];
+
+    return [
+      person.name, person.email, person.phone,
+      person.bookings, person.places, person.paid, person.outstanding,
+      person.events.join('; '), person.dietary.join('; '), person.medical.join('; '),
+      person.emergency, person.first, person.last
+    ];
+  });
+
+  table.sort(function (a, b) {
+    return b[12] - a[12];
+  });
+
+  sheet.clear();
+
+  if (sheet.getFilter()) {
+    sheet.getFilter().remove();
+  }
+
+  readOnlyNotice_(sheet, 'One row per person, rebuilt automatically — edits here are overwritten.');
+
+  sheet.getRange(2, 1, 1, PEOPLE_COLUMNS.length).setValues([PEOPLE_COLUMNS])
+    .setFontFamily('Arial').setFontSize(10).setFontWeight('bold')
+    .setFontColor('#ffffff').setBackground(NAVY).setWrap(true);
+  sheet.setFrozenRows(2);
+
+  [200, 230, 130, 75, 60, 95, 100, 280, 200, 240, 200, 130, 130]
+    .forEach(function (width, index) {
+      sheet.setColumnWidth(index + 1, width);
+    });
+
+  if (table.length) {
+    sheet.getRange(3, 1, table.length, PEOPLE_COLUMNS.length).setValues(table)
+      .setFontFamily('Arial').setFontSize(10);
+    sheet.getRange(3, 6, table.length, 2).setNumberFormat('£#,##0.00');
+    sheet.getRange(3, 12, table.length, 2).setNumberFormat('yyyy-mm-dd');
+    sheet.getRange(2, 1, table.length + 1, PEOPLE_COLUMNS.length).createFilter();
+  }
+
+  sheet.setTabColor('#3f7f5f');
+}
+
 /**
  * Reads the events off the live website and brings the Events tab into line:
  * new events get a row and a tab, renamed or repriced ones are updated, and
@@ -1494,7 +1714,7 @@ function eventRowFor_(eventId) {
  * into the sheet once a day. Run once.
  */
 function installTriggers() {
-  var handlers = ['reconcilePendingBookings', 'syncEventsFromSite'];
+  var handlers = ['reconcilePendingBookings', 'rebuildDirectory', 'syncEventsFromSite'];
 
   ScriptApp.getProjectTriggers().forEach(function (trigger) {
     if (handlers.indexOf(trigger.getHandlerFunction()) !== -1) {
@@ -1503,9 +1723,11 @@ function installTriggers() {
   });
 
   ScriptApp.newTrigger('reconcilePendingBookings').timeBased().everyMinutes(15).create();
+  ScriptApp.newTrigger('rebuildDirectory').timeBased().everyHours(1).create();
   ScriptApp.newTrigger('syncEventsFromSite').timeBased().everyDays(1).atHour(4).create();
 
-  console.log('Triggers installed: payment sweep every 15 minutes, website sync daily at 4am.');
+  console.log('Triggers installed: payment sweep every 15 minutes, directory rebuild hourly, '
+    + 'website sync daily at 4am.');
 }
 
 /** Sends a test booking through the whole flow without touching Stripe. */
