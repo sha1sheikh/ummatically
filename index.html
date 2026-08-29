@@ -684,6 +684,181 @@ ul { margin: 0; padding: 0; list-style: none; }
 .alignright { float: right; margin: 0 0 1rem 1.5rem; }
 .sticky, .gallery-caption, .bypostauthor {}
 
+
+/* ==========================================================================
+   11. Booking dialog
+   ========================================================================== */
+.booking {
+  position: fixed; inset: 0; z-index: 90;
+  display: none;
+  align-items: flex-start; justify-content: center;
+  padding: 1rem;
+  overflow-y: auto; overscroll-behavior: contain;
+  background: hsl(var(--primary) / .7);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+.booking.is-open { display: flex; }
+@media (min-width: 640px) { .booking { padding: 2rem; } }
+
+.booking__panel {
+  position: relative;
+  width: 100%; max-width: 40rem;
+  margin-block: auto;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 24px 60px -20px hsl(var(--primary) / .45);
+}
+
+.booking__close {
+  position: absolute; top: .75rem; right: .75rem; z-index: 1;
+  width: 2.5rem; height: 2.5rem;
+  display: flex; align-items: center; justify-content: center;
+  color: hsl(var(--primary-foreground));
+  background: hsl(var(--primary) / .55);
+  transition: background-color .2s;
+}
+.booking__close:hover { background: hsl(var(--primary) / .8); }
+.booking__close svg { width: 1.25rem; height: 1.25rem; }
+
+.booking__head {
+  padding: 1.5rem;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+@media (min-width: 640px) { .booking__head { padding: 2rem; } }
+.booking__eyebrow {
+  font-size: .75rem; text-transform: uppercase; letter-spacing: .1em;
+  color: hsl(var(--primary-foreground) / .55);
+  margin-bottom: .5rem;
+}
+.booking__title {
+  font-family: var(--font-display); font-weight: 700;
+  font-size: 1.375rem; line-height: 1.2;
+  padding-right: 2.5rem;
+}
+@media (min-width: 640px) { .booking__title { font-size: 1.625rem; } }
+.booking__facts {
+  margin-top: 1rem;
+  display: flex; flex-wrap: wrap; gap: .5rem 1.25rem;
+  font-size: .8125rem;
+  color: hsl(var(--primary-foreground) / .75);
+}
+.booking__facts > div { display: flex; align-items: center; gap: .5rem; }
+.booking__facts svg { width: 1rem; height: 1rem; flex: none; }
+
+.booking__body { padding: 1.5rem; }
+@media (min-width: 640px) { .booking__body { padding: 2rem; } }
+
+.booking__fieldset { border: 0; margin: 0 0 1.75rem; padding: 0; }
+.booking__fieldset:last-of-type { margin-bottom: 1.25rem; }
+.booking__legend {
+  padding: 0; margin-bottom: 1rem;
+  font-size: .75rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .1em;
+  color: hsl(var(--muted-foreground));
+}
+
+.field-grid { display: grid; gap: 1rem; }
+@media (min-width: 560px) { .field-grid--2 { grid-template-columns: 1fr 1fr; } }
+
+.field { display: flex; flex-direction: column; gap: .375rem; }
+.field--full { grid-column: 1 / -1; }
+.field > label {
+  font-size: .8125rem; font-weight: 600;
+  color: hsl(var(--foreground));
+}
+.field .field__hint { font-size: .75rem; font-weight: 400; color: hsl(var(--muted-foreground)); }
+.field .req { color: hsl(var(--accent)); }
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%; box-sizing: border-box;
+  font: inherit; font-size: .875rem;
+  color: hsl(var(--foreground));
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  padding: .75rem;
+  transition: border-color .2s, box-shadow .2s;
+  -webkit-appearance: none; appearance: none;
+}
+.field textarea { min-height: 5rem; resize: vertical; }
+.field select {
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2300175c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right .625rem center;
+  background-size: 1.125rem;
+  padding-right: 2.25rem;
+}
+.field input::placeholder,
+.field textarea::placeholder { color: hsl(var(--muted-foreground) / .7); }
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: hsl(var(--accent));
+  box-shadow: 0 0 0 3px hsl(var(--accent) / .15);
+}
+.field input[aria-invalid="true"],
+.field select[aria-invalid="true"],
+.field textarea[aria-invalid="true"] { border-color: #b42318; }
+.field__error { font-size: .75rem; color: #b42318; }
+
+.field--check { flex-direction: row; align-items: flex-start; gap: .625rem; }
+.field--check input { width: 1.125rem; height: 1.125rem; flex: none; margin-top: .125rem; -webkit-appearance: auto; appearance: auto; }
+.field--check label { font-size: .8125rem; font-weight: 400; line-height: 1.5; }
+
+.booking__hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+
+.booking__total {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  background: hsl(var(--muted));
+  border: 1px solid hsl(var(--border));
+}
+.booking__total dt { font-size: .8125rem; color: hsl(var(--muted-foreground)); }
+.booking__total dd {
+  margin: 0;
+  font-family: var(--font-display); font-weight: 700; font-size: 1.5rem;
+  color: hsl(var(--primary));
+}
+.booking__total-note { flex-basis: 100%; font-size: .75rem; color: hsl(var(--muted-foreground)); }
+
+.booking__submit[disabled] { opacity: .55; cursor: not-allowed; }
+.booking__status { margin-top: 1rem; font-size: .8125rem; text-align: center; }
+.booking__status--error { color: #b42318; }
+.booking__secure {
+  margin-top: 1rem;
+  display: flex; align-items: center; justify-content: center; gap: .5rem;
+  font-size: .75rem; color: hsl(var(--muted-foreground));
+}
+.booking__secure svg { width: .875rem; height: .875rem; }
+
+.booking__result { padding: 2rem 1.5rem 2.5rem; text-align: center; }
+@media (min-width: 640px) { .booking__result { padding: 2.5rem 2rem 3rem; } }
+.booking__result-icon {
+  width: 3.5rem; height: 3.5rem; margin: 0 auto 1.25rem;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: hsl(var(--accent) / .12);
+  color: hsl(var(--accent));
+}
+.booking__result-icon svg { width: 1.75rem; height: 1.75rem; }
+.booking__result h3 { font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; margin-bottom: .75rem; }
+.booking__result p { font-size: .875rem; color: hsl(var(--muted-foreground)); max-width: 28rem; margin-inline: auto; }
+.booking__result .btn { margin-top: 1.75rem; }
+.booking__ref {
+  display: inline-block; margin-top: 1rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .8125rem; letter-spacing: .05em;
+  background: hsl(var(--muted)); border: 1px solid hsl(var(--border));
+  padding: .375rem .75rem;
+}
+
+.booking [hidden] { display: none !important; }
 </style>
 <script>document.documentElement.classList.add('js');</script>
 </head>
@@ -776,7 +951,7 @@ ul { margin: 0; padding: 0; list-style: none; }
               </div>
               <div class="capacity__track"><div class="capacity__fill" style="width: 0%"></div></div>
             </div>
-            <a class="btn btn--accent btn--block" href="https://forms.gle/FAQ1xaUneawNjMB89" target="_blank" rel="noopener noreferrer">Book Now</a>
+            <a class="btn btn--accent btn--block" href="https://forms.gle/FAQ1xaUneawNjMB89" target="_blank" rel="noopener noreferrer" data-book data-event-id="mens-summer-retreat-jul-2026" data-event-title="Men of Ihsan × Muslim Alpha Summer Retreat with Gabriel Al-Romaani" data-event-type="brothers retreat" data-event-price="115" data-event-date="Jul 25, 2026 · 2 Days" data-event-location="Bromsgrove, Worcestershire">Book Now</a>
           </div>
         </article>
         <article class="event-card reveal">
@@ -801,7 +976,7 @@ ul { margin: 0; padding: 0; list-style: none; }
               </div>
               <div class="capacity__track"><div class="capacity__fill" style="width: 0%"></div></div>
             </div>
-            <a class="btn btn--accent btn--block" href="https://forms.gle/FAQ1xaUneawNjMB89" target="_blank" rel="noopener noreferrer">Book Now</a>
+            <a class="btn btn--accent btn--block" href="https://forms.gle/FAQ1xaUneawNjMB89" target="_blank" rel="noopener noreferrer" data-book data-event-id="womens-taster-day-jul-2026" data-event-title="Women of Ihsan – Taster Day" data-event-type="personal development" data-event-price="75" data-event-date="Jul 19, 2026 · 1 Day" data-event-location="B60, Worcestershire">Book Now</a>
           </div>
         </article>
         <article class="event-card reveal">
@@ -826,7 +1001,7 @@ ul { margin: 0; padding: 0; list-style: none; }
               </div>
               <div class="capacity__track"><div class="capacity__fill" style="width: 0%"></div></div>
             </div>
-            <a class="btn btn--accent btn--block" href="https://forms.gle/FAQ1xaUneawNjMB89" target="_blank" rel="noopener noreferrer">Book Now</a>
+            <a class="btn btn--accent btn--block" href="https://forms.gle/FAQ1xaUneawNjMB89" target="_blank" rel="noopener noreferrer" data-book data-event-id="ikhwan-missions-retreat-jul-2026" data-event-title="Ikhwan Missions Retreat with Muslims of Ihsan" data-event-type="brothers retreat" data-event-price="105" data-event-date="Jul 18, 2026 · 2 Days" data-event-location="Bromsgrove, Worcestershire">Book Now</a>
           </div>
         </article>
       </div>
@@ -1155,6 +1330,147 @@ ul { margin: 0; padding: 0; list-style: none; }
   <img src="" alt="">
 </div>
 
+<div class="booking" id="booking" role="dialog" aria-modal="true" aria-labelledby="booking-title" hidden>
+  <div class="booking__panel" role="document">
+    <button class="booking__close" type="button" data-booking-close><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg><span class="screen-reader-text">Close booking form</span></button>
+
+    <div class="booking__head">
+      <p class="booking__eyebrow" data-booking-type>Booking</p>
+      <h2 class="booking__title" id="booking-title" data-booking-title>Reserve your place</h2>
+      <div class="booking__facts">
+        <div data-booking-date-wrap><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span data-booking-date></span></div>
+        <div data-booking-location-wrap><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg><span data-booking-location></span></div>
+      </div>
+    </div>
+
+    <form class="booking__body" data-booking-form novalidate>
+      <input type="hidden" name="eventId" data-booking-field="eventId">
+      <input type="hidden" name="eventTitle" data-booking-field="eventTitle">
+      <input type="hidden" name="eventDate" data-booking-field="eventDate">
+      <input type="hidden" name="eventLocation" data-booking-field="eventLocation">
+      <input type="hidden" name="unitPrice" data-booking-field="unitPrice">
+
+      <div class="booking__hp" aria-hidden="true">
+        <label for="booking-website">Leave this field empty</label>
+        <input id="booking-website" name="website" type="text" tabindex="-1" autocomplete="off">
+      </div>
+
+      <fieldset class="booking__fieldset">
+        <legend class="booking__legend">Your details</legend>
+        <div class="field-grid field-grid--2">
+          <div class="field">
+            <label for="booking-name">Full name <span class="req" aria-hidden="true">*</span></label>
+            <input id="booking-name" name="name" type="text" autocomplete="name" required>
+            <p class="field__error" data-error-for="name" hidden></p>
+          </div>
+          <div class="field">
+            <label for="booking-email">Email <span class="req" aria-hidden="true">*</span></label>
+            <input id="booking-email" name="email" type="email" autocomplete="email" inputmode="email" required>
+            <p class="field__error" data-error-for="email" hidden></p>
+          </div>
+          <div class="field">
+            <label for="booking-phone">Phone <span class="req" aria-hidden="true">*</span></label>
+            <input id="booking-phone" name="phone" type="tel" autocomplete="tel" required>
+            <p class="field__error" data-error-for="phone" hidden></p>
+          </div>
+          <div class="field">
+            <label for="booking-age">Age</label>
+            <input id="booking-age" name="age" type="number" min="16" max="99" inputmode="numeric">
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="booking__fieldset">
+        <legend class="booking__legend">Emergency contact</legend>
+        <div class="field-grid field-grid--2">
+          <div class="field">
+            <label for="booking-ec-name">Contact name <span class="req" aria-hidden="true">*</span></label>
+            <input id="booking-ec-name" name="emergencyName" type="text" required>
+            <p class="field__error" data-error-for="emergencyName" hidden></p>
+          </div>
+          <div class="field">
+            <label for="booking-ec-phone">Contact phone <span class="req" aria-hidden="true">*</span></label>
+            <input id="booking-ec-phone" name="emergencyPhone" type="tel" required>
+            <p class="field__error" data-error-for="emergencyPhone" hidden></p>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="booking__fieldset">
+        <legend class="booking__legend">Your place</legend>
+        <div class="field-grid field-grid--2">
+          <div class="field">
+            <label for="booking-places">Number of places</label>
+            <select id="booking-places" name="places" data-booking-places>
+              <option value="1" selected>1 place</option>
+              <option value="2">2 places</option>
+              <option value="3">3 places</option>
+              <option value="4">4 places</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="booking-heard">How did you hear about us?</label>
+            <select id="booking-heard" name="heardFrom">
+              <option value="">Please choose…</option>
+              <option>Instagram</option>
+              <option>WhatsApp</option>
+              <option>A friend</option>
+              <option>Masjid or community group</option>
+              <option>Been before</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="field field--full">
+            <label for="booking-dietary">Dietary requirements or allergies</label>
+            <input id="booking-dietary" name="dietary" type="text" placeholder="e.g. nut allergy, vegetarian">
+          </div>
+          <div class="field field--full">
+            <label for="booking-medical">Medical conditions or injuries we should know about <span class="field__hint">— outdoor activity is physical; this stays confidential.</span></label>
+            <textarea id="booking-medical" name="medical" rows="2"></textarea>
+          </div>
+          <div class="field field--full">
+            <label for="booking-notes">Anything else?</label>
+            <textarea id="booking-notes" name="notes" rows="2"></textarea>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="booking__fieldset">
+        <legend class="booking__legend">Confirm</legend>
+        <div class="field-grid">
+          <div class="field field--check">
+            <input id="booking-terms" name="terms" type="checkbox" required>
+            <label for="booking-terms">I confirm the details above are correct and I accept the booking terms and cancellation policy. <span class="req" aria-hidden="true">*</span></label>
+          </div>
+          <p class="field__error" data-error-for="terms" hidden></p>
+          <div class="field field--check">
+            <input id="booking-photo" name="photoConsent" type="checkbox">
+            <label for="booking-photo">I'm happy for photos and video taken at the event to be used by Ummatically.</label>
+          </div>
+        </div>
+      </fieldset>
+
+      <dl class="booking__total">
+        <dt>Total</dt>
+        <dd data-booking-total>£0</dd>
+        <p class="booking__total-note" data-booking-note>You'll be taken to our secure payment page to complete your booking.</p>
+      </dl>
+
+      <button class="btn btn--accent btn--block booking__submit" type="submit" data-booking-submit>Continue to payment</button>
+      <p class="booking__status" data-booking-status role="status" aria-live="polite" hidden></p>
+      <p class="booking__secure"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Payments handled securely by Stripe. We never see your card details.</p>
+    </form>
+
+    <div class="booking__result" data-booking-result hidden>
+      <div class="booking__result-icon" data-booking-result-icon></div>
+      <h3 data-booking-result-title></h3>
+      <p data-booking-result-text></p>
+      <p class="booking__ref" data-booking-result-ref hidden></p>
+      <div><button class="btn btn--accent btn--sm" type="button" data-booking-close>Close</button></div>
+    </div>
+  </div>
+</div>
+
 <script>
 /**
  * Ummatically theme behaviours.
@@ -1437,6 +1753,464 @@ ul { margin: 0; padding: 0; list-style: none; }
 	}
 })();
 
+</script>
+<script>
+/**
+ * Booking configuration.
+ * ---------------------------------------------------------------------------
+ * Paste the Google Apps Script Web App URL you get in SETUP.md (step 4) between
+ * the quotes below. It must end in /exec.
+ *
+ * Until this is filled in, every "Book Now" button falls back to the old
+ * Google Form link, so the site keeps working while you set things up.
+ */
+window.UMMATICALLY_BOOKING = {
+	endpoint: '',
+	currency: '£'
+};
+</script>
+<script>
+/**
+ * Ummatically booking dialog.
+ * No dependencies. Falls back to the Google Form when JS or the endpoint
+ * is unavailable.
+ */
+(function () {
+	'use strict';
+
+	var dialog = document.getElementById('booking');
+	var triggers = document.querySelectorAll('[data-book]');
+
+	if (!dialog || !triggers.length) {
+		return;
+	}
+
+	var config = window.UMMATICALLY_BOOKING || {};
+	var endpoint = (config.endpoint || '').trim();
+	var currency = config.currency || '£';
+
+	var form = dialog.querySelector('[data-booking-form]');
+	var result = dialog.querySelector('[data-booking-result]');
+	var submit = dialog.querySelector('[data-booking-submit]');
+	var status = dialog.querySelector('[data-booking-status]');
+	var places = dialog.querySelector('[data-booking-places]');
+	var totalOut = dialog.querySelector('[data-booking-total]');
+	var totalNote = dialog.querySelector('[data-booking-note]');
+	var lastTrigger = null;
+	var unitPrice = 0;
+	var sending = false;
+
+	var ICON_TICK = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg>';
+	var ICON_INFO = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>';
+
+	var text = function (selector, value) {
+		var node = dialog.querySelector(selector);
+		if (node) {
+			node.textContent = value || '';
+		}
+	};
+
+	var money = function (amount) {
+		return currency + (Math.round(amount * 100) / 100).toLocaleString('en-GB');
+	};
+
+	/* ------------------------------------------------------------------
+	 * Open / close.
+	 * ---------------------------------------------------------------- */
+	var open = function (trigger) {
+		var data = trigger.dataset;
+
+		lastTrigger = trigger;
+		unitPrice = parseFloat(data.eventPrice || '0') || 0;
+
+		text('[data-booking-type]', data.eventType || 'Booking');
+		text('[data-booking-title]', data.eventTitle || 'Reserve your place');
+		text('[data-booking-date]', data.eventDate);
+		text('[data-booking-location]', data.eventLocation);
+
+		dialog.querySelector('[data-booking-date-wrap]').hidden = !data.eventDate;
+		dialog.querySelector('[data-booking-location-wrap]').hidden = !data.eventLocation;
+
+		form.querySelector('[data-booking-field="eventId"]').value = data.eventId || '';
+		form.querySelector('[data-booking-field="eventTitle"]').value = data.eventTitle || '';
+		form.querySelector('[data-booking-field="eventDate"]').value = data.eventDate || '';
+		form.querySelector('[data-booking-field="eventLocation"]').value = data.eventLocation || '';
+		form.querySelector('[data-booking-field="unitPrice"]').value = String(unitPrice);
+
+		form.hidden = false;
+		result.hidden = true;
+		clearErrors();
+		setStatus('');
+		syncTotal();
+
+		dialog.removeAttribute('hidden');
+		dialog.classList.add('is-open');
+		document.body.style.overflow = 'hidden';
+
+		window.setTimeout(function () {
+			var first = form.querySelector('#booking-name');
+			if (first) {
+				first.focus();
+			}
+		}, 0);
+	};
+
+	var close = function () {
+		dialog.classList.remove('is-open');
+		dialog.setAttribute('hidden', '');
+		document.body.style.overflow = '';
+
+		if (lastTrigger) {
+			lastTrigger.focus();
+			lastTrigger = null;
+		}
+	};
+
+	/* ------------------------------------------------------------------
+	 * Total.
+	 * ---------------------------------------------------------------- */
+	var syncTotal = function () {
+		var qty = parseInt(places.value, 10) || 1;
+
+		if (!unitPrice) {
+			totalOut.textContent = 'Free';
+			return;
+		}
+
+		totalOut.textContent = money(unitPrice * qty);
+	};
+
+	/* ------------------------------------------------------------------
+	 * Validation.
+	 * ---------------------------------------------------------------- */
+	var clearErrors = function () {
+		form.querySelectorAll('[data-error-for]').forEach(function (node) {
+			node.hidden = true;
+			node.textContent = '';
+		});
+		form.querySelectorAll('[aria-invalid]').forEach(function (node) {
+			node.removeAttribute('aria-invalid');
+		});
+	};
+
+	var showError = function (name, message) {
+		var field = form.querySelector('[name="' + name + '"]');
+		var slot = form.querySelector('[data-error-for="' + name + '"]');
+
+		if (field) {
+			field.setAttribute('aria-invalid', 'true');
+		}
+		if (slot) {
+			slot.textContent = message;
+			slot.hidden = false;
+		}
+	};
+
+	var validate = function (values) {
+		var problems = [];
+
+		if (!values.name) {
+			problems.push(['name', 'Please tell us your name.']);
+		}
+		if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(values.email)) {
+			problems.push(['email', 'Please enter a valid email address.']);
+		}
+		if (values.phone.replace(/[^0-9]/g, '').length < 7) {
+			problems.push(['phone', 'Please enter a contact number.']);
+		}
+		if (!values.emergencyName) {
+			problems.push(['emergencyName', 'Please give an emergency contact.']);
+		}
+		if (values.emergencyPhone.replace(/[^0-9]/g, '').length < 7) {
+			problems.push(['emergencyPhone', 'Please give an emergency contact number.']);
+		}
+		if (!values.terms) {
+			problems.push(['terms', 'Please accept the booking terms to continue.']);
+		}
+
+		return problems;
+	};
+
+	/* ------------------------------------------------------------------
+	 * Submit.
+	 * ---------------------------------------------------------------- */
+	var setStatus = function (message, isError) {
+		status.textContent = message || '';
+		status.hidden = !message;
+		status.classList.toggle('booking__status--error', !!isError);
+	};
+
+	var setBusy = function (busy, label) {
+		sending = busy;
+		submit.disabled = busy;
+		submit.textContent = busy ? (label || 'Please wait…') : 'Continue to payment';
+	};
+
+	var readForm = function () {
+		var data = new FormData(form);
+		var values = {};
+
+		data.forEach(function (value, key) {
+			values[key] = typeof value === 'string' ? value.trim() : value;
+		});
+
+		values.terms = form.querySelector('[name="terms"]').checked;
+		values.photoConsent = form.querySelector('[name="photoConsent"]').checked;
+		values.places = parseInt(values.places, 10) || 1;
+		values.unitPrice = unitPrice;
+		values.total = unitPrice * values.places;
+
+		return values;
+	};
+
+	var post = function (payload) {
+		// text/plain keeps this a "simple" request, so the browser skips the
+		// CORS preflight that Apps Script cannot answer.
+		return window.fetch(endpoint, {
+			method: 'POST',
+			mode: 'cors',
+			redirect: 'follow',
+			headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+			body: JSON.stringify(payload)
+		}).then(function (response) {
+			return response.json();
+		});
+	};
+
+	var showResult = function (icon, title, message, ref) {
+		var refOut = dialog.querySelector('[data-booking-result-ref]');
+
+		dialog.querySelector('[data-booking-result-icon]').innerHTML = icon;
+		text('[data-booking-result-title]', title);
+		text('[data-booking-result-text]', message);
+
+		if (ref) {
+			refOut.textContent = ref;
+			refOut.hidden = false;
+		} else {
+			refOut.hidden = true;
+		}
+
+		form.hidden = true;
+		result.hidden = false;
+	};
+
+	form.addEventListener('submit', function (event) {
+		event.preventDefault();
+
+		if (sending) {
+			return;
+		}
+
+		var values = readForm();
+
+		clearErrors();
+		setStatus('');
+
+		var problems = validate(values);
+
+		if (problems.length) {
+			problems.forEach(function (problem) {
+				showError(problem[0], problem[1]);
+			});
+			var firstBad = form.querySelector('[aria-invalid="true"]');
+			if (firstBad) {
+				firstBad.focus();
+			}
+			return;
+		}
+
+		// Honeypot: bots fill hidden fields, people do not.
+		if (values.website) {
+			return;
+		}
+
+		values.action = 'book';
+		values.pageUrl = window.location.href.split('?')[0].split('#')[0];
+
+		setBusy(true, 'Securing your place…');
+		setStatus('Please wait, do not close this window.');
+
+		post(values).then(function (data) {
+			if (!data || !data.ok) {
+				throw new Error((data && data.error) || 'Something went wrong.');
+			}
+
+			if (data.checkoutUrl) {
+				setStatus('Redirecting to secure payment…');
+				window.location.href = data.checkoutUrl;
+				return;
+			}
+
+			setBusy(false);
+			showResult(
+				ICON_TICK,
+				'Request received',
+				'Jazakum Allahu khayran. We have your details and will email you shortly to confirm your place and arrange payment.',
+				data.ref
+			);
+		}).catch(function (error) {
+			setBusy(false);
+			setStatus(error.message || 'We could not submit your booking. Please try again, or email us directly.', true);
+		});
+	});
+
+	places.addEventListener('change', syncTotal);
+
+	// Clear a field's error as soon as the visitor corrects it.
+	form.addEventListener('input', function (event) {
+		var field = event.target;
+
+		if (!field.name || field.getAttribute('aria-invalid') !== 'true') {
+			return;
+		}
+
+		field.removeAttribute('aria-invalid');
+
+		var slot = form.querySelector('[data-error-for="' + field.name + '"]');
+
+		if (slot) {
+			slot.hidden = true;
+			slot.textContent = '';
+		}
+	});
+
+	form.addEventListener('change', function (event) {
+		var field = event.target;
+
+		if ('checkbox' !== field.type || !field.checked) {
+			return;
+		}
+
+		field.removeAttribute('aria-invalid');
+
+		var slot = form.querySelector('[data-error-for="' + field.name + '"]');
+
+		if (slot) {
+			slot.hidden = true;
+			slot.textContent = '';
+		}
+	});
+
+	/* ------------------------------------------------------------------
+	 * Wire up the triggers, keeping the Google Form as a no-JS fallback.
+	 * ---------------------------------------------------------------- */
+	triggers.forEach(function (trigger) {
+		trigger.addEventListener('click', function (event) {
+			if (!endpoint) {
+				return; // Not configured yet: follow the fallback link.
+			}
+			event.preventDefault();
+			open(trigger);
+		});
+	});
+
+	dialog.querySelectorAll('[data-booking-close]').forEach(function (button) {
+		button.addEventListener('click', close);
+	});
+
+	dialog.addEventListener('click', function (event) {
+		if (event.target === dialog) {
+			close();
+		}
+	});
+
+	document.addEventListener('keydown', function (event) {
+		if ('Escape' === event.key && dialog.classList.contains('is-open') && !sending) {
+			close();
+		}
+	});
+
+	// Keep tabbing inside the dialog while it is open.
+	dialog.addEventListener('keydown', function (event) {
+		if ('Tab' !== event.key) {
+			return;
+		}
+
+		var focusable = dialog.querySelectorAll('button, input, select, textarea, a[href]');
+		var visible = Array.prototype.filter.call(focusable, function (node) {
+			return node.offsetParent !== null && !node.disabled;
+		});
+
+		if (!visible.length) {
+			return;
+		}
+
+		var first = visible[0];
+		var last = visible[visible.length - 1];
+
+		if (event.shiftKey && document.activeElement === first) {
+			event.preventDefault();
+			last.focus();
+		} else if (!event.shiftKey && document.activeElement === last) {
+			event.preventDefault();
+			first.focus();
+		}
+	});
+
+	/* ------------------------------------------------------------------
+	 * Coming back from Stripe.
+	 * ---------------------------------------------------------------- */
+	var params = new URLSearchParams(window.location.search);
+	var outcome = params.get('booking');
+
+	var cleanUrl = function () {
+		history.replaceState(null, '', window.location.pathname + window.location.hash);
+	};
+
+	if ('cancelled' === outcome) {
+		dialog.removeAttribute('hidden');
+		dialog.classList.add('is-open');
+		document.body.style.overflow = 'hidden';
+		showResult(
+			ICON_INFO,
+			'Payment cancelled',
+			'No payment was taken and your place is not yet held. You can start the booking again whenever you are ready.'
+		);
+		cleanUrl();
+	}
+
+	if ('success' === outcome) {
+		dialog.removeAttribute('hidden');
+		dialog.classList.add('is-open');
+		document.body.style.overflow = 'hidden';
+		showResult(ICON_TICK, 'Confirming your payment…', 'One moment while we check with Stripe.');
+
+		var sessionId = params.get('session_id');
+
+		if (endpoint && sessionId) {
+			post({ action: 'confirm', sessionId: sessionId }).then(function (data) {
+				if (!data || !data.ok) {
+					throw new Error('unconfirmed');
+				}
+				showResult(
+					ICON_TICK,
+					'You are booked in',
+					'Jazakum Allahu khayran. Your payment went through and a confirmation email is on its way. Keep your reference below handy.',
+					data.ref
+				);
+			}).catch(function () {
+				showResult(
+					ICON_TICK,
+					'Payment received',
+					'Your payment went through. We are finalising your booking and will email your confirmation shortly.'
+				);
+			});
+		} else {
+			showResult(
+				ICON_TICK,
+				'Payment received',
+				'Your payment went through. We will email your confirmation shortly.'
+			);
+		}
+
+		cleanUrl();
+	}
+
+	if (!endpoint && totalNote) {
+		totalNote.textContent = 'Booking form not connected yet.';
+	}
+})();
 </script>
 </body>
 </html>
