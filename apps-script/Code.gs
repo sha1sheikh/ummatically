@@ -1037,6 +1037,11 @@ function setUp() {
     eventSheet_(event.id, event.name);
   });
 
+  // Rewrite the roll-ups every time. An older version of this script wrote
+  // formulas that knew nothing about the staging tab, and they are only
+  // otherwise written when a tab is first created.
+  refreshEventFormulas_(spreadsheet);
+
   buildSummary_(spreadsheet);
   rebuildDirectory();
   buildReadMe_(spreadsheet);
@@ -1063,6 +1068,21 @@ function setUp() {
 
   console.log(report);
   return report;
+}
+
+/** Brings every event's roll-up formulas up to date with this version. */
+function refreshEventFormulas_(spreadsheet) {
+  var sheet = spreadsheet.getSheetByName(EVENTS_SHEET);
+
+  if (!sheet) {
+    return;
+  }
+
+  eventRows_().forEach(function (event) {
+    if (event.tab) {
+      writeEventFormulas_(sheet, event.row, event.tab);
+    }
+  });
 }
 
 /** Events, Summary and Read me first; the per-event tabs after them. */
@@ -1365,10 +1385,7 @@ function buildSummary_(spreadsheet) {
 function buildReadMe_(spreadsheet) {
   var sheet = tab_(spreadsheet, 'Read me');
 
-  if (sheet.getLastRow() > 0) {
-    return;
-  }
-
+  sheet.clear();
   sheet.setColumnWidth(1, 170);
   sheet.setColumnWidth(2, 660);
 
@@ -1376,8 +1393,10 @@ function buildReadMe_(spreadsheet) {
     .setFontFamily('Arial').setFontSize(14).setFontWeight('bold').setFontColor(NAVY);
 
   var notes = [
-    ['How it works', 'Someone books on the website → this script writes a row on that event’s own tab, emails the organisers, and emails them → Stripe takes the payment → the row flips to Paid.'],
-    ['One tab per event', 'Every event has its own bookings tab, listed in the Bookings Tab column of the Events tab. A new event gets its tab automatically on its first booking.'],
+    ['How it works', 'Someone books on the website → the booking waits on the "' + PENDING_SHEET + '" tab and they are emailed to finish up → Stripe takes the payment → the booking moves onto its event’s tab, the organisers are emailed, and the attendee gets their confirmation.'],
+    ['One tab per event', 'Every event has its own bookings tab, listed in the Bookings Tab column of the Events tab, and it holds people who have paid. A new event gets its tab automatically on its first booking.'],
+    ['Pending payment', 'Bookings part-way through checkout. They move to their event’s tab once paid, or are marked Expired after two days. Places held here still count against capacity, so nobody can take the same last place twice.'],
+    ['Everyone in one place', '"All bookings" is every booking across every event. "People" is one row per person, with what they have booked and paid. Both rebuild themselves.'],
     ['Do not', 'Reorder or rename the columns on an event tab. The script writes by column position, so a moved column silently lands the wrong data in the wrong place. Renaming a tab is fine only if you update its Bookings Tab cell to match.'],
     ['Safe to do', 'Sort, filter, hide columns, add new columns to the RIGHT of "Paid At", and change Status by hand to Cancelled or Refunded.'],
     ['Statuses', 'Enquiry — recorded, no payment configured. Awaiting payment — sent to Stripe, not paid yet. Paid — money received. Expired — set automatically after 2 days unpaid. Cancelled / Refunded — set by you.'],
