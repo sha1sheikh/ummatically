@@ -148,8 +148,43 @@ function siteUrl_() {
    ========================================================================== */
 
 function doGet(e) {
+  if (e && e.parameter && e.parameter.action === 'availability') {
+    return json_(availability_());
+  }
+
   // Used to check the deployment is alive: .../exec?ping=1
   return json_({ ok: true, service: orgName_() + ' bookings', stripe: !!stripeKey_() });
+}
+
+/**
+ * Places left on each event, for the website to show real numbers instead of
+ * whatever was typed into the page. Cached briefly so a busy page does not
+ * re-count the sheet on every visit.
+ */
+function availability_() {
+  var cache = CacheService.getScriptCache();
+  var cached = cache.get('availability');
+
+  if (cached) {
+    return JSON.parse(cached);
+  }
+
+  var result = { ok: true, events: {} };
+
+  eventRows_().forEach(function (event) {
+    var capacity = parseInt(event.capacity, 10);
+    var held = placesTaken_(event);
+
+    result.events[event.id] = {
+      capacity: isNaN(capacity) ? null : capacity,
+      held: held,
+      remaining: isNaN(capacity) ? null : Math.max(capacity - held, 0)
+    };
+  });
+
+  cache.put('availability', JSON.stringify(result), 60);
+
+  return result;
 }
 
 function doPost(e) {
@@ -161,6 +196,8 @@ function doPost(e) {
         return json_(createBooking_(body));
       case 'confirm':
         return json_(confirmBooking_(body.sessionId));
+      case 'availability':
+        return json_(availability_());
       default:
         return json_({ ok: false, error: 'Unknown action.' });
     }

@@ -6,6 +6,7 @@ takes event bookings and payments.
 | File | What it is |
 |---|---|
 | `index.html` | The whole site. Styles, scripts and images are inlined, so it runs from any static host with no build step |
+| `privacy.html` | Privacy policy, covering the health information the booking form collects |
 | `apps-script/Code.gs` | The backend: records bookings, emails you and the attendee, takes payment through Stripe |
 | `apps-script/appsscript.json` | Apps Script project manifest (permissions and deployment settings) |
 | `SETUP.md` | **Start here.** Step-by-step guide to connecting the sheet, the emails and Stripe |
@@ -36,6 +37,10 @@ or on demand.
 
 Until `endpoint` is filled in (SETUP.md step 5) the buttons fall back to the old
 Google Form, so the site is never left with a dead button.
+
+Once connected, the event cards ask the sheet how many places are actually left
+and update themselves; a full event's button becomes an inert "Fully booked". If
+the sheet cannot be reached the printed numbers are left alone.
 
 ## Editing an event
 

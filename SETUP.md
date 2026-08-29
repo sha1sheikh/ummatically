@@ -70,6 +70,10 @@ Once step 3 has run, it will have:
 | **People** | One row per person: what they've booked, what they've paid, dietary and medical notes |
 | **Read me** | House rules and what a booking row looks like |
 
+Your privacy policy lives at `privacy.html`, linked from the footer. It is written
+around what the booking form actually asks for, health details included — read it
+through and have someone check it before your first real booking.
+
 Bookings are kept apart, one tab per event, so you can hand a single event's
 list to whoever is running it without exposing the others. A new event gets its
 tab automatically the first time someone books it.
@@ -317,9 +321,11 @@ the site and leave it. Run it by hand when you want the sheet updated now.
 > It reads the **published** site at `SITE_URL`, not your local file. Publish
 > your changes first, or it will keep reading the old events.
 
-**Capacity is the one thing you set in the sheet, not on the site.** The
-"30 spots remaining" text on the page is just text — the real limit is the
-Capacity column. Once Places Held reaches it, the form turns people away and
+**Capacity is the one thing you set in the sheet, not on the site.** The event
+cards ask the sheet how many places are genuinely left and rewrite themselves on
+load, so the "spots remaining" figure follows your Capacity column rather than
+whatever is typed into the page. A full event's button becomes an inert
+"Fully booked". Once Places Held reaches it, the form turns people away and
 points them at you for the waiting list. Leave it blank for no limit.
 
 > An event booked from the site but missing from the Events tab is added for you,
