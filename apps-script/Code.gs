@@ -38,7 +38,9 @@ var NAVY = '#00175c';
 var GREY = '#666666';
 var BLUE = '#0000ff';
 
-var BOOKINGS_SHEET = 'Bookings';
+/** Only used to migrate a sheet built by an earlier version. */
+var LEGACY_BOOKINGS_SHEET = 'Bookings';
+
 var EVENTS_SHEET = 'Events';
 var STRIPE_API = 'https://api.stripe.com/v1/';
 
@@ -52,6 +54,15 @@ var COLUMNS = [
 /* ==========================================================================
    Configuration helpers
    ========================================================================== */
+
+/** The Events tab, which indexes every per-event bookings tab. */
+var EVENT_COLUMNS = [
+  'Event ID', 'Event Name', 'Capacity', 'Price', 'Bookings Tab', 'Notes',
+  'Bookings', 'Paid', 'Awaiting', 'Enquiries', 'Closed',
+  'Places Held', 'Places Paid', 'Remaining', 'Revenue Collected', 'Revenue Outstanding'
+];
+
+var CLOSED_STATUSES = ['Cancelled', 'Expired', 'Refunded'];
 
 function config_(key, fallback) {
   var value = PropertiesService.getScriptProperties().getProperty(key);
@@ -153,20 +164,154 @@ function book_() {
   return SpreadsheetApp.openById(config_('SPREADSHEET_ID', DEFAULT_SPREADSHEET_ID));
 }
 
-function sheet_(name) {
-  var sheet = book_().getSheetByName(name);
-  if (!sheet) {
-    throw new Error('Sheet tab "' + name + '" is missing. Run setUp() once — SETUP.md step 3.');
-  }
-  return sheet;
-}
-
 function columnIndex_(name) {
   var index = COLUMNS.indexOf(name);
   if (index === -1) {
     throw new Error('Unknown column: ' + name);
   }
   return index + 1;
+}
+
+function eventColumnIndex_(name) {
+  var index = EVENT_COLUMNS.indexOf(name);
+  if (index === -1) {
+    throw new Error('Unknown Events column: ' + name);
+  }
+  return index + 1;
+}
+
+/* ==========================================================================
+   Per-event bookings tabs
+
+   Every event gets its own tab, with the same columns. The Events tab is the
+   index: each row names the tab that holds its bookings.
+   ========================================================================== */
+
+/** A tab name Google Sheets will accept. */
+function safeTabName_(name) {
+  var clean = String(name || '')
+    .replace(/[\[\]\*\?\/\\:]/g, ' ')
+    .replace(/^'+|'+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 90);
+
+  return clean || 'Event';
+}
+
+/** Every row of the Events tab, as objects. */
+function eventRows_() {
+  var sheet = book_().getSheetByName(EVENTS_SHEET);
+
+  if (!sheet || sheet.getLastRow() < 2) {
+    return [];
+  }
+
+  var width = Math.min(sheet.getLastColumn(), EVENT_COLUMNS.length);
+  var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, width).getValues();
+  var rows = [];
+
+  values.forEach(function (row, index) {
+    var id = String(row[eventColumnIndex_('Event ID') - 1] || '').trim();
+
+    if (!id) {
+      return;
+    }
+
+    rows.push({
+      row: index + 2,
+      id: id,
+      name: String(row[eventColumnIndex_('Event Name') - 1] || '').trim(),
+      capacity: row[eventColumnIndex_('Capacity') - 1],
+      tab: String(row[eventColumnIndex_('Bookings Tab') - 1] || '').trim()
+    });
+  });
+
+  return rows;
+}
+
+/** The tabs that hold bookings, newest events last. */
+function eventTabs_() {
+  var spreadsheet = book_();
+
+  return eventRows_()
+    .map(function (event) { return event.tab; })
+    .filter(function (name) { return name && spreadsheet.getSheetByName(name); });
+}
+
+/**
+ * The bookings tab for an event, creating it — and its Events row — the first
+ * time that event is booked.
+ */
+function eventSheet_(eventId, eventTitle) {
+  var spreadsheet = book_();
+  var events = eventRows_();
+  var match = null;
+
+  for (var i = 0; i < events.length; i++) {
+    if (events[i].id === eventId) {
+      match = events[i];
+      break;
+    }
+  }
+
+  var wanted = safeTabName_((match && match.name) || eventTitle || eventId);
+
+  if (match && match.tab && spreadsheet.getSheetByName(match.tab)) {
+    return spreadsheet.getSheetByName(match.tab);
+  }
+
+  // Never hand two events the same tab.
+  var taken = {};
+
+  events.forEach(function (event) {
+    if (event.id !== eventId && event.tab) {
+      taken[event.tab] = true;
+    }
+  });
+
+  var name = wanted;
+  var suffix = 2;
+
+  while (taken[name] || (!match && spreadsheet.getSheetByName(name))) {
+    name = wanted.slice(0, 86) + ' (' + suffix + ')';
+    suffix++;
+  }
+
+  var sheet = spreadsheet.getSheetByName(name) || buildBookingsTab_(spreadsheet, name);
+
+  registerEventTab_(eventId, eventTitle, name, match);
+
+  return sheet;
+}
+
+/** Records the tab name against the event, adding the event row if it is new. */
+function registerEventTab_(eventId, eventTitle, tabName, match) {
+  var sheet = book_().getSheetByName(EVENTS_SHEET);
+
+  if (!sheet) {
+    return;
+  }
+
+  if (match) {
+    sheet.getRange(match.row, eventColumnIndex_('Bookings Tab')).setValue(tabName);
+    writeEventFormulas_(sheet, match.row, tabName);
+    return;
+  }
+
+  var row = Math.max(sheet.getLastRow() + 1, 2);
+
+  sheet.getRange(row, 1, 1, 6).setValues([[
+    eventId,
+    safeTabName_(eventTitle || eventId),
+    '',              // capacity: blank means uncapped
+    '',              // price: for your reference only
+    tabName,
+    'Added automatically on the first booking.'
+  ]]).setFontFamily('Arial').setFontSize(10);
+
+  sheet.getRange(row, 1, 1, 4).setFontColor(BLUE);
+  writeEventFormulas_(sheet, row, tabName);
 }
 
 /* ==========================================================================
@@ -288,7 +433,7 @@ function reference_() {
 }
 
 function appendBooking_(data, ref, session) {
-  sheet_(BOOKINGS_SHEET).appendRow([
+  eventSheet_(data.eventId, data.eventTitle).appendRow([
     new Date(),
     ref,
     session ? 'Awaiting payment' : 'Enquiry',
@@ -323,54 +468,56 @@ function appendBooking_(data, ref, session) {
    ========================================================================== */
 
 /**
- * Places left for an event, or null when the Events tab does not list it
+ * Places left for an event, or null when the Events tab gives it no capacity
  * (in which case bookings are never turned away).
  */
 function spotsRemaining_(eventId) {
-  var sheet = book_().getSheetByName(EVENTS_SHEET);
-
-  if (!sheet || sheet.getLastRow() < 2 || !eventId) {
+  if (!eventId) {
     return null;
   }
 
-  var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 3).getValues();
-  var capacity = null;
+  var events = eventRows_();
+  var match = null;
 
-  for (var i = 0; i < rows.length; i++) {
-    if (String(rows[i][0]).trim() === eventId) {
-      capacity = parseInt(rows[i][2], 10);
+  for (var i = 0; i < events.length; i++) {
+    if (events[i].id === eventId) {
+      match = events[i];
       break;
     }
   }
 
-  if (!capacity && capacity !== 0) {
+  if (!match) {
     return null;
   }
 
-  return Math.max(capacity - placesTaken_(eventId), 0);
+  var capacity = parseInt(match.capacity, 10);
+
+  if (isNaN(capacity)) {
+    return null;
+  }
+
+  return Math.max(capacity - placesTaken_(match), 0);
 }
 
-function placesTaken_(eventId) {
-  var sheet = sheet_(BOOKINGS_SHEET);
+/** Places already held on an event's own tab, ignoring closed bookings. */
+function placesTaken_(event) {
+  var sheet = event.tab ? book_().getSheetByName(event.tab) : null;
 
-  if (sheet.getLastRow() < 2) {
+  if (!sheet || sheet.getLastRow() < 2) {
     return 0;
   }
 
-  var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, COLUMNS.length).getValues();
-  var idCol = columnIndex_('Event ID') - 1;
-  var statusCol = columnIndex_('Status') - 1;
-  var placesCol = columnIndex_('Places') - 1;
+  var statusCol = columnIndex_('Status');
+  var placesCol = columnIndex_('Places');
+  var width = placesCol - statusCol + 1;
+  var rows = sheet.getRange(2, statusCol, sheet.getLastRow() - 1, width).getValues();
   var taken = 0;
 
   rows.forEach(function (row) {
-    if (String(row[idCol]).trim() !== eventId) {
+    if (CLOSED_STATUSES.indexOf(String(row[0])) !== -1) {
       return;
     }
-    if (['Cancelled', 'Expired', 'Refunded'].indexOf(String(row[statusCol])) !== -1) {
-      return;
-    }
-    taken += parseInt(row[placesCol], 10) || 0;
+    taken += parseInt(row[width - 1], 10) || 0;
   });
 
   return taken;
@@ -462,41 +609,75 @@ function confirmBooking_(sessionId) {
 }
 
 function markPaid_(session) {
-  var sheet = sheet_(BOOKINGS_SHEET);
-  var lastRow = sheet.getLastRow();
+  var found = findBySession_(session);
 
-  if (lastRow < 2) {
+  if (!found) {
     return { ref: session.client_reference_id || '' };
   }
 
-  var sessionCol = columnIndex_('Stripe Session');
+  var sheet = found.sheet;
+  var row = found.row;
   var statusCol = columnIndex_('Status');
-  var ids = sheet.getRange(2, sessionCol, lastRow - 1, 1).getValues();
+  var alreadyPaid = String(sheet.getRange(row, statusCol).getValue()) === 'Paid';
 
-  for (var i = 0; i < ids.length; i++) {
-    if (String(ids[i][0]) !== session.id) {
+  sheet.getRange(row, statusCol).setValue('Paid');
+  sheet.getRange(row, columnIndex_('Stripe Payment')).setValue(session.payment_intent || '');
+  sheet.getRange(row, columnIndex_('Paid At')).setValue(new Date());
+
+  var ref = sheet.getRange(row, columnIndex_('Reference')).getValue();
+
+  if (!alreadyPaid) {
+    var record = rowToBooking_(sheet.getRange(row, 1, 1, COLUMNS.length).getValues()[0]);
+    emailAttendee_(record, ref, 'paid');
+    notifyOwner_(record, ref, 'PAID');
+  }
+
+  return { ref: ref };
+}
+
+/**
+ * Locates the booking a Stripe session belongs to. The session carries its
+ * event id, so this normally opens exactly one tab; the sweep over every tab
+ * is the fallback for a session created before that metadata existed.
+ */
+function findBySession_(session) {
+  var eventId = (session.metadata && session.metadata.eventId) || '';
+  var names = [];
+
+  if (eventId) {
+    eventRows_().forEach(function (event) {
+      if (event.id === eventId && event.tab) {
+        names.push(event.tab);
+      }
+    });
+  }
+
+  eventTabs_().forEach(function (name) {
+    if (names.indexOf(name) === -1) {
+      names.push(name);
+    }
+  });
+
+  var spreadsheet = book_();
+  var sessionCol = columnIndex_('Stripe Session');
+
+  for (var i = 0; i < names.length; i++) {
+    var sheet = spreadsheet.getSheetByName(names[i]);
+
+    if (!sheet || sheet.getLastRow() < 2) {
       continue;
     }
 
-    var row = i + 2;
-    var alreadyPaid = String(sheet.getRange(row, statusCol).getValue()) === 'Paid';
+    var ids = sheet.getRange(2, sessionCol, sheet.getLastRow() - 1, 1).getValues();
 
-    sheet.getRange(row, statusCol).setValue('Paid');
-    sheet.getRange(row, columnIndex_('Stripe Payment')).setValue(session.payment_intent || '');
-    sheet.getRange(row, columnIndex_('Paid At')).setValue(new Date());
-
-    var ref = sheet.getRange(row, columnIndex_('Reference')).getValue();
-
-    if (!alreadyPaid) {
-      var record = rowToBooking_(sheet.getRange(row, 1, 1, COLUMNS.length).getValues()[0]);
-      emailAttendee_(record, ref, 'paid');
-      notifyOwner_(record, ref, 'PAID');
+    for (var j = 0; j < ids.length; j++) {
+      if (String(ids[j][0]) === session.id) {
+        return { sheet: sheet, row: j + 2 };
+      }
     }
-
-    return { ref: ref };
   }
 
-  return { ref: session.client_reference_id || '' };
+  return null;
 }
 
 function rowToBooking_(row) {
@@ -536,35 +717,38 @@ function reconcilePendingBookings() {
     return;
   }
 
-  var sheet = sheet_(BOOKINGS_SHEET);
-  var lastRow = sheet.getLastRow();
-
-  if (lastRow < 2) {
-    return;
-  }
-
-  var rows = sheet.getRange(2, 1, lastRow - 1, COLUMNS.length).getValues();
-  var statusCol = columnIndex_('Status') - 1;
-  var sessionCol = columnIndex_('Stripe Session') - 1;
-  var stampCol = columnIndex_('Timestamp') - 1;
+  var spreadsheet = book_();
+  var statusCol = columnIndex_('Status');
+  var sessionCol = columnIndex_('Stripe Session');
+  var stampCol = columnIndex_('Timestamp');
   var cutoff = Date.now() - 1000 * 60 * 60 * 24 * 2;
 
-  rows.forEach(function (row, index) {
-    if (String(row[statusCol]) !== 'Awaiting payment' || !row[sessionCol]) {
+  eventTabs_().forEach(function (name) {
+    var sheet = spreadsheet.getSheetByName(name);
+
+    if (!sheet || sheet.getLastRow() < 2) {
       return;
     }
 
-    try {
-      var session = stripe_('checkout/sessions/' + encodeURIComponent(row[sessionCol]));
+    var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, COLUMNS.length).getValues();
 
-      if (session.payment_status === 'paid') {
-        markPaid_(session);
-      } else if (session.status === 'expired' || new Date(row[stampCol]).getTime() < cutoff) {
-        sheet.getRange(index + 2, statusCol + 1).setValue('Expired');
+    rows.forEach(function (row, index) {
+      if (String(row[statusCol - 1]) !== 'Awaiting payment' || !row[sessionCol - 1]) {
+        return;
       }
-    } catch (error) {
-      console.error('Reconcile failed for row ' + (index + 2) + ': ' + error.message);
-    }
+
+      try {
+        var session = stripe_('checkout/sessions/' + encodeURIComponent(row[sessionCol - 1]));
+
+        if (session.payment_status === 'paid') {
+          markPaid_(session);
+        } else if (session.status === 'expired' || new Date(row[stampCol - 1]).getTime() < cutoff) {
+          sheet.getRange(index + 2, statusCol).setValue('Expired');
+        }
+      } catch (error) {
+        console.error('Reconcile failed on "' + name + '" row ' + (index + 2) + ': ' + error.message);
+      }
+    });
   });
 }
 
@@ -681,29 +865,36 @@ function emailAttendee_(data, ref, state) {
    ========================================================================== */
 
 /**
- * Builds the whole workbook — Bookings, Events, Summary and Read me — then
- * checks your configuration. Safe to run more than once: it only creates what
- * is missing and never touches booking rows.
+ * Builds the workbook: an Events index, one bookings tab per event, plus
+ * Summary and Read me. Safe to run more than once — it only creates what is
+ * missing and never touches booking rows.
  */
 function setUp() {
   var spreadsheet = book_();
 
-  buildBookings_(spreadsheet);
   buildEvents_(spreadsheet);
+  migrateFromSingleTab_(spreadsheet);
+
+  eventRows_().forEach(function (event) {
+    eventSheet_(event.id, event.name);
+  });
+
   buildSummary_(spreadsheet);
   buildReadMe_(spreadsheet);
 
   var blank = spreadsheet.getSheetByName('Sheet1');
 
-  if (blank && spreadsheet.getSheets().length > 1) {
+  if (blank && spreadsheet.getSheets().length > 1 && blank.getLastRow() === 0) {
     spreadsheet.deleteSheet(blank);
   }
 
-  spreadsheet.setActiveSheet(spreadsheet.getSheetByName(BOOKINGS_SHEET));
+  orderTabs_(spreadsheet);
+  spreadsheet.setActiveSheet(spreadsheet.getSheetByName(EVENTS_SHEET));
 
   var report = [
     'Spreadsheet: ' + spreadsheet.getName(),
     'URL: ' + spreadsheet.getUrl(),
+    'Bookings tabs: ' + (eventTabs_().join(', ') || 'none yet'),
     'Booking alerts go to: ' + owners_().join(', '),
     'Site URL: ' + config_('SITE_URL', 'NOT SET'),
     'Stripe: ' + (stripeKey_()
@@ -713,6 +904,18 @@ function setUp() {
 
   console.log(report);
   return report;
+}
+
+/** Events, Summary and Read me first; the per-event tabs after them. */
+function orderTabs_(spreadsheet) {
+  ['Read me', 'Summary', EVENTS_SHEET].forEach(function (name) {
+    var sheet = spreadsheet.getSheetByName(name);
+
+    if (sheet) {
+      spreadsheet.setActiveSheet(sheet);
+      spreadsheet.moveActiveSheet(1);
+    }
+  });
 }
 
 function tab_(spreadsheet, name) {
@@ -738,12 +941,9 @@ function headerRow_(sheet, labels, widths) {
   });
 }
 
-function buildBookings_(spreadsheet) {
-  var sheet = tab_(spreadsheet, BOOKINGS_SHEET);
-
-  if (sheet.getLastRow() > 0) {
-    return; // Already built — leave the bookings alone.
-  }
+/** Creates one event's bookings tab, formatted and ready. */
+function buildBookingsTab_(spreadsheet, name) {
+  var sheet = spreadsheet.insertSheet(name);
 
   headerRow_(sheet, COLUMNS,
     [130, 110, 120, 260, 210, 150, 170, 150, 190, 120, 50, 55, 80, 80, 70,
@@ -759,7 +959,7 @@ function buildBookings_(spreadsheet) {
 
   statusRange.setDataValidation(
     SpreadsheetApp.newDataValidation()
-      .requireValueInList(['Enquiry', 'Awaiting payment', 'Paid', 'Cancelled', 'Expired', 'Refunded'], true)
+      .requireValueInList(['Enquiry', 'Awaiting payment', 'Paid'].concat(CLOSED_STATUSES), true)
       .setAllowInvalid(true)
       .setHelpText('Set by the script. Change it by hand only to cancel or refund.')
       .build());
@@ -775,6 +975,10 @@ function buildBookings_(spreadsheet) {
   if (!sheet.getFilter()) {
     sheet.getRange(1, 1, sheet.getMaxRows(), COLUMNS.length).createFilter();
   }
+
+  sheet.setTabColor(NAVY);
+
+  return sheet;
 }
 
 function conditionalFill_(range, value, colour) {
@@ -785,6 +989,40 @@ function conditionalFill_(range, value, colour) {
     .build();
 }
 
+/**
+ * Moves rows written by an earlier single-tab version onto the per-event tabs,
+ * then parks the old tab as "Bookings (archived)". No-op on a fresh sheet.
+ */
+function migrateFromSingleTab_(spreadsheet) {
+  var legacy = spreadsheet.getSheetByName(LEGACY_BOOKINGS_SHEET);
+
+  if (!legacy || legacy.getLastRow() < 2) {
+    return 0;
+  }
+
+  var rows = legacy.getRange(2, 1, legacy.getLastRow() - 1, COLUMNS.length).getValues();
+  var idCol = columnIndex_('Event ID') - 1;
+  var titleCol = columnIndex_('Event') - 1;
+  var moved = 0;
+
+  rows.forEach(function (row) {
+    if (!row[columnIndex_('Reference') - 1]) {
+      return;
+    }
+
+    eventSheet_(String(row[idCol]).trim(), String(row[titleCol]).trim()).appendRow(row);
+    moved++;
+  });
+
+  if (moved) {
+    legacy.setName(LEGACY_BOOKINGS_SHEET + ' (archived)');
+    console.log('Moved ' + moved + ' booking(s) off the old single tab. It is now "'
+      + LEGACY_BOOKINGS_SHEET + ' (archived)" and can be deleted once you have checked it.');
+  }
+
+  return moved;
+}
+
 function buildEvents_(spreadsheet) {
   var sheet = tab_(spreadsheet, EVENTS_SHEET);
 
@@ -792,57 +1030,70 @@ function buildEvents_(spreadsheet) {
     return;
   }
 
-  headerRow_(sheet,
-    ['Event ID', 'Event Name', 'Capacity', 'Price', 'Notes',
-     'Places Held', 'Places Paid', 'Remaining', 'Revenue Collected'],
-    [240, 320, 75, 65, 180, 90, 90, 90, 130]);
+  headerRow_(sheet, EVENT_COLUMNS,
+    [240, 300, 75, 65, 200, 180, 80, 60, 80, 80, 70, 90, 90, 90, 130, 130]);
 
   var events = [
-    ['mens-summer-retreat-jul-2026', 'Men of Ihsan × Muslim Alpha Summer Retreat', 30, 115, ''],
-    ['womens-taster-day-jul-2026', 'Women of Ihsan — Taster Day', 20, 75, ''],
-    ['ikhwan-missions-retreat-jul-2026', 'Ikhwan Missions Retreat', 30, 105, '']
+    ['mens-summer-retreat-jul-2026', 'Men of Ihsan × Muslim Alpha Summer Retreat', 30, 115],
+    ['womens-taster-day-jul-2026', 'Women of Ihsan — Taster Day', 20, 75],
+    ['ikhwan-missions-retreat-jul-2026', 'Ikhwan Missions Retreat', 30, 105]
   ];
 
-  sheet.getRange(2, 1, events.length, 5).setValues(events).setFontFamily('Arial').setFontSize(10);
-  sheet.getRange(2, 1, events.length, 4).setFontColor(BLUE);
-  sheet.getRange(2, 4, events.length, 1).setNumberFormat('£#,##0');
+  events.forEach(function (event, index) {
+    var row = index + 2;
+    sheet.getRange(row, 1, 1, 4).setValues([event])
+      .setFontFamily('Arial').setFontSize(10).setFontColor(BLUE);
+    sheet.getRange(row, 4).setNumberFormat('£#,##0');
+  });
 
-  var places = bookingsRange_('Places');
-  var totals = bookingsRange_('Total');
-  var ids = bookingsRange_('Event ID');
-  var status = bookingsRange_('Status');
-  var formulas = [];
-
-  for (var i = 0; i < events.length; i++) {
-    var row = i + 2;
-    formulas.push([
-      '=SUMIFS(' + places + ',' + ids + ',$A' + row + ',' + status + ',"<>Cancelled",' +
-        status + ',"<>Expired",' + status + ',"<>Refunded")',
-      '=SUMIFS(' + places + ',' + ids + ',$A' + row + ',' + status + ',"Paid")',
-      '=MAX($C' + row + '-$F' + row + ',0)',
-      '=SUMIFS(' + totals + ',' + ids + ',$A' + row + ',' + status + ',"Paid")'
-    ]);
-  }
-
-  sheet.getRange(2, 6, events.length, 4).setFormulas(formulas).setFontFamily('Arial').setFontSize(10);
-  sheet.getRange(2, 9, events.length, 1).setNumberFormat('£#,##0.00');
-
-  // Notes sit in column K, clear of columns A-C: the capacity check scans those
-  // for events, and stray text there would sit among the real rows.
-  sheet.setColumnWidth(11, 420);
-  sheet.getRange('K1:K3')
+  sheet.setColumnWidth(18, 420);
+  sheet.getRange('R1:R3')
     .setValues([
       ['Blue cells are yours to edit. Event ID must match the data-event-id in index.html exactly.'],
-      ['Places Held counts everything except cancelled, expired and refunded — that is what the capacity check uses.'],
-      ['Add a new event on the first empty row. The last four columns calculate themselves.']
+      ['Bookings Tab is filled in automatically — it names the tab holding that event’s bookings.'],
+      ['Add a new event on the first empty row. Its tab appears when the first booking arrives, or when you run setUp again.']
     ])
     .setFontFamily('Arial').setFontSize(9).setFontStyle('italic').setFontColor(GREY)
-    .setBackground(null).setFontWeight('normal').setWrap(true);
+    .setFontWeight('normal').setWrap(true);
 }
 
-function bookingsRange_(column) {
-  var letter = columnLetter_(columnIndex_(column));
-  return "Bookings!$" + letter + "$2:$" + letter + "$" + FORMULA_ROWS;
+/** The per-event roll-up formulas, pointed at that event's own tab. */
+function writeEventFormulas_(sheet, row, tabName) {
+  var quoted = "'" + tabName.replace(/'/g, "''") + "'!";
+  var status = quoted + '$' + columnLetter_(columnIndex_('Status')) + '$2:$'
+    + columnLetter_(columnIndex_('Status')) + '$' + FORMULA_ROWS;
+  var places = quoted + '$' + columnLetter_(columnIndex_('Places')) + '$2:$'
+    + columnLetter_(columnIndex_('Places')) + '$' + FORMULA_ROWS;
+  var totals = quoted + '$' + columnLetter_(columnIndex_('Total')) + '$2:$'
+    + columnLetter_(columnIndex_('Total')) + '$' + FORMULA_ROWS;
+  var refs = quoted + '$' + columnLetter_(columnIndex_('Reference')) + '$2:$'
+    + columnLetter_(columnIndex_('Reference')) + '$' + FORMULA_ROWS;
+
+  var open = CLOSED_STATUSES.map(function (value) {
+    return status + ',"<>' + value + '"';
+  }).join(',');
+
+  var closed = CLOSED_STATUSES.map(function (value) {
+    return 'COUNTIF(' + status + ',"' + value + '")';
+  }).join('+');
+
+  var capacity = '$' + columnLetter_(eventColumnIndex_('Capacity')) + row;
+  var held = '$' + columnLetter_(eventColumnIndex_('Places Held')) + row;
+
+  sheet.getRange(row, eventColumnIndex_('Bookings'), 1, 10).setFormulas([[
+    '=COUNTA(' + refs + ')',
+    '=COUNTIF(' + status + ',"Paid")',
+    '=COUNTIF(' + status + ',"Awaiting payment")',
+    '=COUNTIF(' + status + ',"Enquiry")',
+    '=' + closed,
+    '=SUMIFS(' + places + ',' + open + ')',
+    '=SUMIFS(' + places + ',' + status + ',"Paid")',
+    '=IF(' + capacity + '="","",MAX(' + capacity + '-' + held + ',0))',
+    '=SUMIFS(' + totals + ',' + status + ',"Paid")',
+    '=SUMIFS(' + totals + ',' + status + ',"Awaiting payment")'
+  ]]).setFontFamily('Arial').setFontSize(10);
+
+  sheet.getRange(row, eventColumnIndex_('Revenue Collected'), 1, 2).setNumberFormat('£#,##0.00');
 }
 
 function columnLetter_(index) {
@@ -864,31 +1115,29 @@ function buildSummary_(spreadsheet) {
     return;
   }
 
-  var places = bookingsRange_('Places');
-  var totals = bookingsRange_('Total');
-  var status = bookingsRange_('Status');
-  var refs = bookingsRange_('Reference');
+  var total = function (column) {
+    var letter = columnLetter_(eventColumnIndex_(column));
+    return '=SUM(' + EVENTS_SHEET + '!$' + letter + '$2:$' + letter + '$500)';
+  };
 
   sheet.setColumnWidth(1, 220);
   sheet.setColumnWidths(2, 4, 110);
 
   sheet.getRange('A1').setValue('Bookings at a glance')
     .setFontFamily('Arial').setFontSize(14).setFontWeight('bold').setFontColor(NAVY);
-  sheet.getRange('A2').setValue('Recalculates automatically as bookings arrive.')
+  sheet.getRange('A2').setValue('Totals across every event. Each event has its own tab.')
     .setFontFamily('Arial').setFontSize(9).setFontStyle('italic').setFontColor(GREY);
 
   var metrics = [
-    ['Total bookings', '=COUNTA(' + refs + ')', '#,##0'],
-    ['Paid', '=COUNTIF(' + status + ',"Paid")', '#,##0'],
-    ['Awaiting payment', '=COUNTIF(' + status + ',"Awaiting payment")', '#,##0'],
-    ['Enquiries', '=COUNTIF(' + status + ',"Enquiry")', '#,##0'],
-    ['Cancelled or expired',
-      '=COUNTIF(' + status + ',"Cancelled")+COUNTIF(' + status + ',"Expired")+COUNTIF(' + status + ',"Refunded")',
-      '#,##0'],
+    ['Total bookings', total('Bookings'), '#,##0'],
+    ['Paid', total('Paid'), '#,##0'],
+    ['Awaiting payment', total('Awaiting'), '#,##0'],
+    ['Enquiries', total('Enquiries'), '#,##0'],
+    ['Cancelled or expired', total('Closed'), '#,##0'],
     ['', '', ''],
-    ['Places paid for', '=SUMIFS(' + places + ',' + status + ',"Paid")', '#,##0'],
-    ['Revenue collected', '=SUMIFS(' + totals + ',' + status + ',"Paid")', '£#,##0.00'],
-    ['Revenue outstanding', '=SUMIFS(' + totals + ',' + status + ',"Awaiting payment")', '£#,##0.00']
+    ['Places paid for', total('Places Paid'), '#,##0'],
+    ['Revenue collected', total('Revenue Collected'), '£#,##0.00'],
+    ['Revenue outstanding', total('Revenue Outstanding'), '£#,##0.00']
   ];
 
   metrics.forEach(function (metric, index) {
@@ -904,7 +1153,7 @@ function buildSummary_(spreadsheet) {
       .setNumberFormat(metric[2]).setHorizontalAlignment('right');
   });
 
-  sheet.getRange('A14').setValue('Capacity by event')
+  sheet.getRange('A14').setValue('By event')
     .setFontFamily('Arial').setFontSize(11).setFontWeight('bold').setFontColor(NAVY);
 
   sheet.getRange(15, 1, 1, 5)
@@ -912,10 +1161,18 @@ function buildSummary_(spreadsheet) {
     .setFontFamily('Arial').setFontSize(10).setFontWeight('bold')
     .setFontColor('#ffffff').setBackground(NAVY);
 
+  var column = function (name, row) {
+    return '=IF(' + EVENTS_SHEET + '!$A' + row + '="","",' + EVENTS_SHEET + '!$'
+      + columnLetter_(eventColumnIndex_(name)) + row + ')';
+  };
+
   var rows = [];
 
-  for (var i = 2; i <= 4; i++) {
-    rows.push(['=Events!$B' + i, '=Events!$C' + i, '=Events!$F' + i, '=Events!$H' + i, '=Events!$I' + i]);
+  for (var i = 2; i <= 21; i++) {
+    rows.push([
+      column('Event Name', i), column('Capacity', i), column('Places Held', i),
+      column('Remaining', i), column('Revenue Collected', i)
+    ]);
   }
 
   sheet.getRange(16, 1, rows.length, 5).setFormulas(rows).setFontFamily('Arial').setFontSize(10);
@@ -937,12 +1194,13 @@ function buildReadMe_(spreadsheet) {
     .setFontFamily('Arial').setFontSize(14).setFontWeight('bold').setFontColor(NAVY);
 
   var notes = [
-    ['How it works', 'Someone books on the website → this script writes a row on the Bookings tab, emails the organisers, and emails them → Stripe takes the payment → the row flips to Paid.'],
-    ['Do not', 'Rename tabs, reorder columns, or rename headers on the Bookings tab. The script writes by column position, so a moved column silently lands the wrong data in the wrong place.'],
+    ['How it works', 'Someone books on the website → this script writes a row on that event’s own tab, emails the organisers, and emails them → Stripe takes the payment → the row flips to Paid.'],
+    ['One tab per event', 'Every event has its own bookings tab, listed in the Bookings Tab column of the Events tab. A new event gets its tab automatically on its first booking.'],
+    ['Do not', 'Reorder or rename the columns on an event tab. The script writes by column position, so a moved column silently lands the wrong data in the wrong place. Renaming a tab is fine only if you update its Bookings Tab cell to match.'],
     ['Safe to do', 'Sort, filter, hide columns, add new columns to the RIGHT of "Paid At", and change Status by hand to Cancelled or Refunded.'],
-    ['Keep row 2 free', 'The Bookings tab is empty on purpose — new bookings append to the first free row, and a placeholder row would count against your event capacity. The example below shows what a real row looks like.'],
     ['Statuses', 'Enquiry — recorded, no payment configured. Awaiting payment — sent to Stripe, not paid yet. Paid — money received. Expired — set automatically after 2 days unpaid. Cancelled / Refunded — set by you.'],
-    ['Events tab', 'Edit Capacity and Price there. The website stops taking bookings once Places Held reaches Capacity. Event ID must match index.html exactly.']
+    ['Events tab', 'Edit Event ID, Event Name, Capacity and Price there — the blue columns. Everything to the right of Notes counts itself from that event’s tab. Leave Capacity blank for an uncapped event.'],
+    ['Summary tab', 'Adds up every event. It reads the Events tab, so it picks up new events on its own.']
   ];
 
   sheet.getRange(3, 1, notes.length, 2).setValues(notes)
@@ -951,7 +1209,7 @@ function buildReadMe_(spreadsheet) {
 
   var exampleRow = 3 + notes.length + 1;
 
-  sheet.getRange(exampleRow, 1).setValue('Example row')
+  sheet.getRange(exampleRow, 1).setValue('What a booking row looks like')
     .setFontFamily('Arial').setFontSize(11).setFontWeight('bold').setFontColor(NAVY);
 
   sheet.getRange(exampleRow + 1, 1, 1, COLUMNS.length).setValues([COLUMNS])

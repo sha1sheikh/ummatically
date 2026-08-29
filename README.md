@@ -6,15 +6,14 @@ takes event bookings and payments.
 | File | What it is |
 |---|---|
 | `index.html` | The whole site. Styles, scripts and images are inlined, so it runs from any static host with no build step |
-| `bookings.xlsx` | A spare offline copy of the spreadsheet layout — not needed for setup |
 | `apps-script/Code.gs` | The backend: records bookings, emails you and the attendee, takes payment through Stripe |
 | `apps-script/appsscript.json` | Apps Script project manifest (permissions and deployment settings) |
 | `SETUP.md` | **Start here.** Step-by-step guide to connecting the sheet, the emails and Stripe |
 
 The live spreadsheet is
 **[Ummatically Bookings](https://docs.google.com/spreadsheets/d/1fYhsyCe3vG76-2qtCUP9ZS_TNwexZDnhGesC2ggh93Y/edit)**
-in Google Drive. Running `setUp` in the Apps Script project builds its four tabs
-(Bookings, Events, Summary, Read me) and fills in the formatting and formulas.
+in Google Drive. Running `setUp` in the Apps Script project builds an Events index, a Summary, a
+Read me, and one bookings tab per event — each event's bookings kept separate.
 
 Booking alerts go to `abuobaydahalyafawe@gmail.com` and
 `shawon.sheikh247@gmail.com` — change that via `DEFAULT_OWNERS` in
@@ -45,7 +44,8 @@ Event details live on the **Book Now** button itself in `index.html`:
 ```
 
 Capacity and price also go on the **Events** tab of the spreadsheet, matched by
-`data-event-id`. See SETUP.md for the details.
+`data-event-id` — which is also what decides the tab a booking lands on. A new
+event gets its own tab automatically. See SETUP.md for the details.
 
 ## Local preview
 

@@ -60,18 +60,20 @@ Once step 3 has run, it will have:
 
 | Tab | What it's for |
 |---|---|
-| **Bookings** | Every booking lands here, newest at the bottom |
-| **Events** | Capacity and price per event — the only tab you edit by hand |
-| **Summary** | Live totals: paid, awaiting payment, revenue, places left |
-| **Read me** | House rules and an example row |
+| **Events** | The index: capacity and price per event, and which tab holds its bookings. The only tab you edit by hand |
+| **Summary** | Live totals across every event: paid, awaiting payment, revenue, places left |
+| **One tab per event** | Named after the event — bookings for that event and nothing else |
+| **Read me** | House rules and what a booking row looks like |
+
+Bookings are kept apart, one tab per event, so you can hand a single event's
+list to whoever is running it without exposing the others. A new event gets its
+tab automatically the first time someone books it.
 
 > **Want to use a different sheet instead?** Create one, copy the long code
 > between `/d/` and `/edit` in its address bar, and add it as a
 > `SPREADSHEET_ID` script property in step 3. That overrides the built-in one.
 
-> `bookings.xlsx` in the repository is a spare copy of the same layout. You do
-> not need it — it is there in case you ever want to rebuild the sheet by hand
-> or keep an offline backup.
+> For an offline copy at any point, use **File → Download** in Google Sheets.
 
 ---
 
@@ -190,7 +192,7 @@ Save, commit, and publish the site.
 
 **Test it now, before touching Stripe.** Open the site, click **Book Now**, fill
 the form in, and submit. You should get an email, the attendee address should get
-one, and a row should appear on the **Bookings** tab with status **Enquiry**.
+one, and a row should appear on that event's own tab with status **Enquiry**.
 
 ---
 
@@ -287,12 +289,21 @@ Two places have to agree, and they agree on the **Event ID**.
 
 `data-event-price` is the price **per place**, digits only — `115`, not `£115`.
 
-**On the Events tab**, add a row with the *same* `Event ID`, plus capacity and
-price. Capacity is what stops overbooking: once Places Held reaches it, the form
-turns people away and tells them to email you for the waiting list.
+**On the Events tab**, add a row with the *same* `Event ID`, plus the event name,
+capacity and price — the four blue columns. Capacity is what stops overbooking:
+once Places Held reaches it, the form turns people away and tells them to email
+you for the waiting list. Leave Capacity blank for an uncapped event.
 
-> An event that isn't listed on the Events tab still takes bookings — it just
-> isn't capped.
+Its bookings tab appears by itself, either when you next run `setUp` or when the
+first booking arrives. The **Bookings Tab** column then names it. Everything
+right of Notes counts itself from that tab.
+
+> An event booked from the site but missing from the Events tab is added for you,
+> with a tab of its own and no capacity limit. So a typo in `data-event-id`
+> shows up as a stray event row rather than a lost booking.
+
+> Renaming a bookings tab is fine, as long as you change its **Bookings Tab**
+> cell to match. Otherwise the script will make a fresh tab under the old name.
 
 ### Statuses
 
@@ -324,6 +335,8 @@ and emailed; they just come in as enquiries for you to invoice by hand.
 | `Missing Script Property: SITE_URL` | Add it in step 3 — it's the one setting with no default |
 | `Sheet tab "Bookings" is missing` | Run **`setUp`** once (step 3) |
 | The sheet is still empty | `setUp` hasn't run, or it ran against a different sheet. Its log prints the URL it used — check that's the one you're looking at |
+| A booking went to the wrong tab | The tab is chosen by `data-event-id`. Two events sharing an id share a tab — give each its own |
+| An event tab appeared unexpectedly | A booking arrived with an id that isn't on the Events tab. Check `data-event-id` in `index.html` against the Events tab |
 | Only one of you gets the emails | Check the other address's spam folder, then the `NOTIFY_EMAIL` property and `DEFAULT_OWNERS` in `Code.gs` |
 | Emails never arrive | Check spam first. Gmail allows ~100 script emails a day, Workspace ~1,500 — each booking emails both owners and the attendee |
 | Stripe says "No such API key" | Test key with live mode, or vice versa. Also make sure you redeployed after changing it |
