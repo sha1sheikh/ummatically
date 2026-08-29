@@ -6,10 +6,19 @@ takes event bookings and payments.
 | File | What it is |
 |---|---|
 | `index.html` | The whole site. Styles, scripts and images are inlined, so it runs from any static host with no build step |
-| `bookings.xlsx` | The bookings spreadsheet — upload it to Google Drive and convert it to a Google Sheet |
+| `bookings.xlsx` | A spare offline copy of the spreadsheet layout — not needed for setup |
 | `apps-script/Code.gs` | The backend: records bookings, emails you and the attendee, takes payment through Stripe |
 | `apps-script/appsscript.json` | Apps Script project manifest (permissions and deployment settings) |
 | `SETUP.md` | **Start here.** Step-by-step guide to connecting the sheet, the emails and Stripe |
+
+The live spreadsheet is
+**[Ummatically Bookings](https://docs.google.com/spreadsheets/d/1fYhsyCe3vG76-2qtCUP9ZS_TNwexZDnhGesC2ggh93Y/edit)**
+in Google Drive. Running `setUp` in the Apps Script project builds its four tabs
+(Bookings, Events, Summary, Read me) and fills in the formatting and formulas.
+
+Booking alerts go to `abuobaydahalyafawe@gmail.com` and
+`shawon.sheikh247@gmail.com` — change that via `DEFAULT_OWNERS` in
+`apps-script/Code.gs` or a `NOTIFY_EMAIL` script property.
 
 ## Booking flow
 

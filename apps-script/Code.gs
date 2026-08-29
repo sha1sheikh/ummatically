@@ -6,7 +6,8 @@
  *
  * Configuration lives in Script Properties, never in this file:
  *   SPREADSHEET_ID     required  the id in your Google Sheet's URL
- *   NOTIFY_EMAIL       required  where new-booking alerts are sent
+ *   NOTIFY_EMAIL       optional  who gets new-booking alerts; comma-separated for
+ *                                several people. Defaults to DEFAULT_OWNERS below.
  *   SITE_URL           required  the public URL of the site, e.g. https://ummatically.com/
  *   STRIPE_SECRET_KEY  optional  sk_test_… or sk_live_…; without it bookings are
  *                                recorded and emailed but no payment is taken
@@ -15,6 +16,27 @@
  *
  * See SETUP.md in the repository for the full walkthrough.
  */
+
+/**
+ * Who gets told about every booking. Add or remove addresses here, or override
+ * the whole list without touching the code by setting a NOTIFY_EMAIL script
+ * property (comma-separated). The first address is the one attendees reply to.
+ */
+var DEFAULT_OWNERS = 'abuobaydahalyafawe@gmail.com, shawon.sheikh247@gmail.com';
+
+/**
+ * The Google Sheet this writes to. Override with a SPREADSHEET_ID script
+ * property to point at a different one. The id on its own grants nobody
+ * access — that is controlled by who the sheet is shared with.
+ */
+var DEFAULT_SPREADSHEET_ID = '1fYhsyCe3vG76-2qtCUP9ZS_TNwexZDnhGesC2ggh93Y';
+
+/** How far down the sheet the Events and Summary formulas look. */
+var FORMULA_ROWS = 5000;
+
+var NAVY = '#00175c';
+var GREY = '#666666';
+var BLUE = '#0000ff';
 
 var BOOKINGS_SHEET = 'Bookings';
 var EVENTS_SHEET = 'Events';
@@ -42,6 +64,30 @@ function requiredConfig_(key) {
     throw new Error('Missing Script Property: ' + key + '. See SETUP.md step 3.');
   }
   return value;
+}
+
+/** The owner addresses, as a list. */
+function owners_() {
+  var list = config_('NOTIFY_EMAIL', DEFAULT_OWNERS)
+    .split(/[,;]/)
+    .map(function (address) { return address.trim(); })
+    .filter(String);
+
+  if (!list.length) {
+    throw new Error('No owner address configured. Set NOTIFY_EMAIL or DEFAULT_OWNERS.');
+  }
+
+  return list;
+}
+
+/** All owners, ready for a MailApp "to" field. */
+function ownerList_() {
+  return owners_().join(',');
+}
+
+/** A single address for attendees to reply to. */
+function replyAddress_() {
+  return owners_()[0];
 }
 
 function orgName_() {
@@ -104,7 +150,7 @@ function json_(payload) {
    ========================================================================== */
 
 function book_() {
-  return SpreadsheetApp.openById(requiredConfig_('SPREADSHEET_ID'));
+  return SpreadsheetApp.openById(config_('SPREADSHEET_ID', DEFAULT_SPREADSHEET_ID));
 }
 
 function sheet_(name) {
@@ -582,7 +628,7 @@ function notifyOwner_(data, ref, state) {
   ]);
 
   MailApp.sendEmail({
-    to: requiredConfig_('NOTIFY_EMAIL'),
+    to: ownerList_(),
     replyTo: data.email,
     subject: subject,
     htmlBody: shell_('New booking', 'Recorded in your bookings sheet.', body)
@@ -623,7 +669,7 @@ function emailAttendee_(data, ref, state) {
 
   MailApp.sendEmail({
     to: data.email,
-    replyTo: requiredConfig_('NOTIFY_EMAIL'),
+    replyTo: replyAddress_(),
     name: org,
     subject: copy.subject,
     htmlBody: shell_(copy.heading, copy.intro, summary, copy.footer)
@@ -635,41 +681,30 @@ function emailAttendee_(data, ref, state) {
    ========================================================================== */
 
 /**
- * Creates and formats the sheet tabs, then checks your configuration.
- * Safe to run more than once.
+ * Builds the whole workbook — Bookings, Events, Summary and Read me — then
+ * checks your configuration. Safe to run more than once: it only creates what
+ * is missing and never touches booking rows.
  */
 function setUp() {
   var spreadsheet = book_();
-  var bookings = spreadsheet.getSheetByName(BOOKINGS_SHEET) || spreadsheet.insertSheet(BOOKINGS_SHEET);
 
-  if (bookings.getLastRow() === 0) {
-    bookings.appendRow(COLUMNS);
+  buildBookings_(spreadsheet);
+  buildEvents_(spreadsheet);
+  buildSummary_(spreadsheet);
+  buildReadMe_(spreadsheet);
+
+  var blank = spreadsheet.getSheetByName('Sheet1');
+
+  if (blank && spreadsheet.getSheets().length > 1) {
+    spreadsheet.deleteSheet(blank);
   }
 
-  var header = bookings.getRange(1, 1, 1, COLUMNS.length);
-  header.setFontWeight('bold').setBackground('#00175c').setFontColor('#ffffff');
-  bookings.setFrozenRows(1);
-  bookings.getRange(2, columnIndex_('Timestamp'), Math.max(bookings.getMaxRows() - 1, 1), 1)
-    .setNumberFormat('yyyy-mm-dd hh:mm');
-  bookings.getRange(2, columnIndex_('Unit Price'), Math.max(bookings.getMaxRows() - 1, 1), 2)
-    .setNumberFormat('#,##0.00');
-  bookings.autoResizeColumns(1, COLUMNS.length);
-
-  var events = spreadsheet.getSheetByName(EVENTS_SHEET) || spreadsheet.insertSheet(EVENTS_SHEET);
-
-  if (events.getLastRow() === 0) {
-    events.appendRow(['Event ID', 'Event Name', 'Capacity', 'Price', 'Notes']);
-    events.getRange(1, 1, 1, 5).setFontWeight('bold').setBackground('#00175c').setFontColor('#ffffff');
-    events.setFrozenRows(1);
-    events.appendRow(['mens-summer-retreat-jul-2026', 'Men of Ihsan × Muslim Alpha Summer Retreat', 30, 115, '']);
-    events.appendRow(['womens-taster-day-jul-2026', 'Women of Ihsan — Taster Day', 20, 75, '']);
-    events.appendRow(['ikhwan-missions-retreat-jul-2026', 'Ikhwan Missions Retreat', 30, 105, '']);
-    events.autoResizeColumns(1, 5);
-  }
+  spreadsheet.setActiveSheet(spreadsheet.getSheetByName(BOOKINGS_SHEET));
 
   var report = [
     'Spreadsheet: ' + spreadsheet.getName(),
-    'Notify email: ' + config_('NOTIFY_EMAIL', 'NOT SET'),
+    'URL: ' + spreadsheet.getUrl(),
+    'Booking alerts go to: ' + owners_().join(', '),
     'Site URL: ' + config_('SITE_URL', 'NOT SET'),
     'Stripe: ' + (stripeKey_()
       ? (stripeKey_().indexOf('sk_live') === 0 ? 'LIVE key' : 'test key')
@@ -678,6 +713,258 @@ function setUp() {
 
   console.log(report);
   return report;
+}
+
+function tab_(spreadsheet, name) {
+  return spreadsheet.getSheetByName(name) || spreadsheet.insertSheet(name);
+}
+
+function headerRow_(sheet, labels, widths) {
+  sheet.getRange(1, 1, 1, labels.length)
+    .setValues([labels])
+    .setFontFamily('Arial')
+    .setFontSize(10)
+    .setFontWeight('bold')
+    .setFontColor('#ffffff')
+    .setBackground(NAVY)
+    .setVerticalAlignment('middle')
+    .setWrap(true);
+
+  sheet.setRowHeight(1, 34);
+  sheet.setFrozenRows(1);
+
+  widths.forEach(function (width, index) {
+    sheet.setColumnWidth(index + 1, width);
+  });
+}
+
+function buildBookings_(spreadsheet) {
+  var sheet = tab_(spreadsheet, BOOKINGS_SHEET);
+
+  if (sheet.getLastRow() > 0) {
+    return; // Already built — leave the bookings alone.
+  }
+
+  headerRow_(sheet, COLUMNS,
+    [130, 110, 120, 260, 210, 150, 170, 150, 190, 120, 50, 55, 80, 80, 70,
+     150, 120, 170, 210, 130, 210, 100, 100, 210, 210, 130]);
+
+  var depth = sheet.getMaxRows() - 1;
+
+  sheet.getRange(2, columnIndex_('Timestamp'), depth, 1).setNumberFormat('yyyy-mm-dd hh:mm');
+  sheet.getRange(2, columnIndex_('Paid At'), depth, 1).setNumberFormat('yyyy-mm-dd hh:mm');
+  sheet.getRange(2, columnIndex_('Unit Price'), depth, 2).setNumberFormat('£#,##0.00');
+
+  var statusRange = sheet.getRange(2, columnIndex_('Status'), depth, 1);
+
+  statusRange.setDataValidation(
+    SpreadsheetApp.newDataValidation()
+      .requireValueInList(['Enquiry', 'Awaiting payment', 'Paid', 'Cancelled', 'Expired', 'Refunded'], true)
+      .setAllowInvalid(true)
+      .setHelpText('Set by the script. Change it by hand only to cancel or refund.')
+      .build());
+
+  sheet.setConditionalFormatRules([
+    conditionalFill_(statusRange, 'Paid', '#d6f0dc'),
+    conditionalFill_(statusRange, 'Awaiting payment', '#fdf0cc'),
+    conditionalFill_(statusRange, 'Cancelled', '#f5d9d6'),
+    conditionalFill_(statusRange, 'Expired', '#f5d9d6'),
+    conditionalFill_(statusRange, 'Refunded', '#f5d9d6')
+  ]);
+
+  if (!sheet.getFilter()) {
+    sheet.getRange(1, 1, sheet.getMaxRows(), COLUMNS.length).createFilter();
+  }
+}
+
+function conditionalFill_(range, value, colour) {
+  return SpreadsheetApp.newConditionalFormatRule()
+    .whenTextEqualTo(value)
+    .setBackground(colour)
+    .setRanges([range])
+    .build();
+}
+
+function buildEvents_(spreadsheet) {
+  var sheet = tab_(spreadsheet, EVENTS_SHEET);
+
+  if (sheet.getLastRow() > 0) {
+    return;
+  }
+
+  headerRow_(sheet,
+    ['Event ID', 'Event Name', 'Capacity', 'Price', 'Notes',
+     'Places Held', 'Places Paid', 'Remaining', 'Revenue Collected'],
+    [240, 320, 75, 65, 180, 90, 90, 90, 130]);
+
+  var events = [
+    ['mens-summer-retreat-jul-2026', 'Men of Ihsan × Muslim Alpha Summer Retreat', 30, 115, ''],
+    ['womens-taster-day-jul-2026', 'Women of Ihsan — Taster Day', 20, 75, ''],
+    ['ikhwan-missions-retreat-jul-2026', 'Ikhwan Missions Retreat', 30, 105, '']
+  ];
+
+  sheet.getRange(2, 1, events.length, 5).setValues(events).setFontFamily('Arial').setFontSize(10);
+  sheet.getRange(2, 1, events.length, 4).setFontColor(BLUE);
+  sheet.getRange(2, 4, events.length, 1).setNumberFormat('£#,##0');
+
+  var places = bookingsRange_('Places');
+  var totals = bookingsRange_('Total');
+  var ids = bookingsRange_('Event ID');
+  var status = bookingsRange_('Status');
+  var formulas = [];
+
+  for (var i = 0; i < events.length; i++) {
+    var row = i + 2;
+    formulas.push([
+      '=SUMIFS(' + places + ',' + ids + ',$A' + row + ',' + status + ',"<>Cancelled",' +
+        status + ',"<>Expired",' + status + ',"<>Refunded")',
+      '=SUMIFS(' + places + ',' + ids + ',$A' + row + ',' + status + ',"Paid")',
+      '=MAX($C' + row + '-$F' + row + ',0)',
+      '=SUMIFS(' + totals + ',' + ids + ',$A' + row + ',' + status + ',"Paid")'
+    ]);
+  }
+
+  sheet.getRange(2, 6, events.length, 4).setFormulas(formulas).setFontFamily('Arial').setFontSize(10);
+  sheet.getRange(2, 9, events.length, 1).setNumberFormat('£#,##0.00');
+
+  // Notes sit in column K, clear of columns A-C: the capacity check scans those
+  // for events, and stray text there would sit among the real rows.
+  sheet.setColumnWidth(11, 420);
+  sheet.getRange('K1:K3')
+    .setValues([
+      ['Blue cells are yours to edit. Event ID must match the data-event-id in index.html exactly.'],
+      ['Places Held counts everything except cancelled, expired and refunded — that is what the capacity check uses.'],
+      ['Add a new event on the first empty row. The last four columns calculate themselves.']
+    ])
+    .setFontFamily('Arial').setFontSize(9).setFontStyle('italic').setFontColor(GREY)
+    .setBackground(null).setFontWeight('normal').setWrap(true);
+}
+
+function bookingsRange_(column) {
+  var letter = columnLetter_(columnIndex_(column));
+  return "Bookings!$" + letter + "$2:$" + letter + "$" + FORMULA_ROWS;
+}
+
+function columnLetter_(index) {
+  var letter = '';
+
+  while (index > 0) {
+    var remainder = (index - 1) % 26;
+    letter = String.fromCharCode(65 + remainder) + letter;
+    index = (index - remainder - 1) / 26;
+  }
+
+  return letter;
+}
+
+function buildSummary_(spreadsheet) {
+  var sheet = tab_(spreadsheet, 'Summary');
+
+  if (sheet.getLastRow() > 0) {
+    return;
+  }
+
+  var places = bookingsRange_('Places');
+  var totals = bookingsRange_('Total');
+  var status = bookingsRange_('Status');
+  var refs = bookingsRange_('Reference');
+
+  sheet.setColumnWidth(1, 220);
+  sheet.setColumnWidths(2, 4, 110);
+
+  sheet.getRange('A1').setValue('Bookings at a glance')
+    .setFontFamily('Arial').setFontSize(14).setFontWeight('bold').setFontColor(NAVY);
+  sheet.getRange('A2').setValue('Recalculates automatically as bookings arrive.')
+    .setFontFamily('Arial').setFontSize(9).setFontStyle('italic').setFontColor(GREY);
+
+  var metrics = [
+    ['Total bookings', '=COUNTA(' + refs + ')', '#,##0'],
+    ['Paid', '=COUNTIF(' + status + ',"Paid")', '#,##0'],
+    ['Awaiting payment', '=COUNTIF(' + status + ',"Awaiting payment")', '#,##0'],
+    ['Enquiries', '=COUNTIF(' + status + ',"Enquiry")', '#,##0'],
+    ['Cancelled or expired',
+      '=COUNTIF(' + status + ',"Cancelled")+COUNTIF(' + status + ',"Expired")+COUNTIF(' + status + ',"Refunded")',
+      '#,##0'],
+    ['', '', ''],
+    ['Places paid for', '=SUMIFS(' + places + ',' + status + ',"Paid")', '#,##0'],
+    ['Revenue collected', '=SUMIFS(' + totals + ',' + status + ',"Paid")', '£#,##0.00'],
+    ['Revenue outstanding', '=SUMIFS(' + totals + ',' + status + ',"Awaiting payment")', '£#,##0.00']
+  ];
+
+  metrics.forEach(function (metric, index) {
+    var row = 4 + index;
+
+    if (!metric[0]) {
+      return;
+    }
+
+    sheet.getRange(row, 1).setValue(metric[0]).setFontFamily('Arial').setFontSize(10);
+    sheet.getRange(row, 2).setFormula(metric[1])
+      .setFontFamily('Arial').setFontSize(10).setFontWeight('bold')
+      .setNumberFormat(metric[2]).setHorizontalAlignment('right');
+  });
+
+  sheet.getRange('A14').setValue('Capacity by event')
+    .setFontFamily('Arial').setFontSize(11).setFontWeight('bold').setFontColor(NAVY);
+
+  sheet.getRange(15, 1, 1, 5)
+    .setValues([['Event', 'Capacity', 'Held', 'Remaining', 'Collected']])
+    .setFontFamily('Arial').setFontSize(10).setFontWeight('bold')
+    .setFontColor('#ffffff').setBackground(NAVY);
+
+  var rows = [];
+
+  for (var i = 2; i <= 4; i++) {
+    rows.push(['=Events!$B' + i, '=Events!$C' + i, '=Events!$F' + i, '=Events!$H' + i, '=Events!$I' + i]);
+  }
+
+  sheet.getRange(16, 1, rows.length, 5).setFormulas(rows).setFontFamily('Arial').setFontSize(10);
+  sheet.getRange(16, 5, rows.length, 1).setNumberFormat('£#,##0.00');
+  sheet.getRange(15, 1, rows.length + 1, 5).setBorder(null, null, true, null, null, true, '#d3dced', null);
+}
+
+function buildReadMe_(spreadsheet) {
+  var sheet = tab_(spreadsheet, 'Read me');
+
+  if (sheet.getLastRow() > 0) {
+    return;
+  }
+
+  sheet.setColumnWidth(1, 170);
+  sheet.setColumnWidth(2, 660);
+
+  sheet.getRange('A1').setValue('Ummatically — event bookings')
+    .setFontFamily('Arial').setFontSize(14).setFontWeight('bold').setFontColor(NAVY);
+
+  var notes = [
+    ['How it works', 'Someone books on the website → this script writes a row on the Bookings tab, emails the organisers, and emails them → Stripe takes the payment → the row flips to Paid.'],
+    ['Do not', 'Rename tabs, reorder columns, or rename headers on the Bookings tab. The script writes by column position, so a moved column silently lands the wrong data in the wrong place.'],
+    ['Safe to do', 'Sort, filter, hide columns, add new columns to the RIGHT of "Paid At", and change Status by hand to Cancelled or Refunded.'],
+    ['Keep row 2 free', 'The Bookings tab is empty on purpose — new bookings append to the first free row, and a placeholder row would count against your event capacity. The example below shows what a real row looks like.'],
+    ['Statuses', 'Enquiry — recorded, no payment configured. Awaiting payment — sent to Stripe, not paid yet. Paid — money received. Expired — set automatically after 2 days unpaid. Cancelled / Refunded — set by you.'],
+    ['Events tab', 'Edit Capacity and Price there. The website stops taking bookings once Places Held reaches Capacity. Event ID must match index.html exactly.']
+  ];
+
+  sheet.getRange(3, 1, notes.length, 2).setValues(notes)
+    .setFontFamily('Arial').setFontSize(10).setVerticalAlignment('top').setWrap(true);
+  sheet.getRange(3, 1, notes.length, 1).setFontWeight('bold').setFontColor(NAVY);
+
+  var exampleRow = 3 + notes.length + 1;
+
+  sheet.getRange(exampleRow, 1).setValue('Example row')
+    .setFontFamily('Arial').setFontSize(11).setFontWeight('bold').setFontColor(NAVY);
+
+  sheet.getRange(exampleRow + 1, 1, 1, COLUMNS.length).setValues([COLUMNS])
+    .setFontFamily('Arial').setFontSize(9).setFontWeight('bold')
+    .setFontColor('#ffffff').setBackground(NAVY);
+
+  sheet.getRange(exampleRow + 2, 1, 1, COLUMNS.length).setValues([[
+    '2026-06-02 14:31', 'UMM-2606-K3F9', 'Paid',
+    'Women of Ihsan – Taster Day', 'womens-taster-day-jul-2026', 'Jul 19, 2026 · 1 Day',
+    'B60, Worcestershire', 'Aisha Rahman', 'aisha@example.com', '07700 900123', '27', 2,
+    75, 150, 'GBP', 'Mariam Rahman', '07700 900456', 'Nut allergy', 'None', 'Instagram',
+    '', 'Yes', 'Yes', 'cs_test_a1b2c3', 'pi_3Nx4y5', '2026-06-02 14:33'
+  ]]).setFontFamily('Arial').setFontSize(9);
 }
 
 /** Runs the pending-payment sweep every 15 minutes. Run once. */
@@ -701,7 +988,7 @@ function sendTestBooking() {
     eventDate: 'Jan 1, 2030',
     eventLocation: 'Test location',
     name: 'Test Person',
-    email: config_('NOTIFY_EMAIL', Session.getEffectiveUser().getEmail()),
+    email: replyAddress_(),
     phone: '07000000000',
     places: 1,
     unitPrice: 0,

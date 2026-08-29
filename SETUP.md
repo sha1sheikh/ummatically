@@ -1,7 +1,7 @@
 # Booking & payments — setup
 
 The site now has its own booking form. This is how you connect it to your email,
-a Google Sheet, and Stripe.
+your Google Sheet, and Stripe.
 
 Nothing here costs money to run. Google Apps Script is free, and Stripe only
 takes its fee when you actually get paid.
@@ -17,7 +17,7 @@ Visitor clicks "Book Now"
   Form on the website  ──POST──►  Google Apps Script (your backend)
                                         │
                                         ├─► writes a row on the Bookings sheet
-                                        ├─► emails you the booking
+                                        ├─► emails both organisers
                                         └─► emails the attendee
                                         │
                                         ▼
@@ -40,22 +40,23 @@ You still get every email exactly as you wanted.
 
 ## What you need
 
-- A Google account (the one that should receive booking emails)
+- The Google account that owns the spreadsheet (`shawon.sheikh247@gmail.com`)
 - A Stripe account — free to open at [stripe.com](https://stripe.com)
 - About 30 minutes
 
 ---
 
-## Step 1 — Create the spreadsheet
+## Step 1 — Your spreadsheet
 
-1. Go to [drive.google.com](https://drive.google.com).
-2. **New → File upload**, and pick `bookings.xlsx` from this repository.
-3. Once it uploads, double-click it, then **File → Save as Google Sheets**.
-   (Apps Script can't write to an `.xlsx` file — it must be a real Google Sheet.)
-4. Delete the leftover `.xlsx` from Drive so you don't confuse the two.
-5. Rename the sheet to something like **Ummatically Bookings**.
+**It already exists.** I created it in your Google Drive:
 
-The sheet has four tabs:
+**[Ummatically Bookings](https://docs.google.com/spreadsheets/d/1fYhsyCe3vG76-2qtCUP9ZS_TNwexZDnhGesC2ggh93Y/edit)**
+
+It opens empty — the script fills in all four tabs when you run `setUp` in
+step 3. Its ID is already built into `Code.gs`, so there is nothing to copy or
+paste.
+
+Once step 3 has run, it will have:
 
 | Tab | What it's for |
 |---|---|
@@ -64,13 +65,13 @@ The sheet has four tabs:
 | **Summary** | Live totals: paid, awaiting payment, revenue, places left |
 | **Read me** | House rules and an example row |
 
-**Copy the spreadsheet ID from the address bar.** It's the long code between
-`/d/` and `/edit`:
+> **Want to use a different sheet instead?** Create one, copy the long code
+> between `/d/` and `/edit` in its address bar, and add it as a
+> `SPREADSHEET_ID` script property in step 3. That overrides the built-in one.
 
-```
-https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789/edit
-                                        └────────── this bit ──────────┘
-```
+> `bookings.xlsx` in the repository is a spare copy of the same layout. You do
+> not need it — it is there in case you ever want to rebuild the sheet by hand
+> or keep an offline backup.
 
 ---
 
@@ -88,23 +89,36 @@ https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789/edi
 
 ---
 
-## Step 3 — Add your settings
+## Step 3 — Add your settings and build the sheet
 
-Still in **⚙ Project Settings**, scroll to **Script Properties** →
-**Add script property**. Add these:
+Most of this is already filled in for you. In **⚙ Project Settings**, scroll to
+**Script Properties** → **Add script property**, and add the one setting that
+can't be guessed:
 
 | Property | Value |
 |---|---|
-| `SPREADSHEET_ID` | the ID you copied in step 1 |
-| `NOTIFY_EMAIL` | where booking alerts go, e.g. `bookings@ummatically.com` |
 | `SITE_URL` | your live site, e.g. `https://ummatically.com/` |
-
-Leave Stripe alone for now — we'll add it in step 6.
 
 > **`SITE_URL` must be the public address people actually visit.** Stripe sends
 > them back there after paying. A `file:///` path or `localhost` won't work.
 
-Now run the setup check:
+These are optional — set one only if you want to override what's already in
+`Code.gs`:
+
+| Property | Overrides |
+|---|---|
+| `SPREADSHEET_ID` | the sheet from step 1 |
+| `NOTIFY_EMAIL` | who gets booking alerts (comma-separated for several people) |
+| `ORG_NAME` | the name on outgoing emails, currently `Ummatically` |
+| `CURRENCY` | the currency, currently `gbp` |
+
+**Booking alerts already go to both of you:**
+`abuobaydahalyafawe@gmail.com` and `shawon.sheikh247@gmail.com`. Attendees who
+reply to a confirmation email reach the first address. To change either, edit
+`DEFAULT_OWNERS` at the top of `Code.gs`, or set `NOTIFY_EMAIL` to override
+without touching the code.
+
+Now build the spreadsheet:
 
 1. In the editor's function dropdown (top bar), choose **`setUp`**.
 2. Click **Run**.
@@ -114,9 +128,13 @@ Now run the setup check:
    That warning is normal: it's *your* script, and Google shows it for anything
    not published to their public marketplace.
 4. Look at the **Execution log** at the bottom. It should print your spreadsheet
-   name, your notify email, and `Stripe: not configured`.
+   name and URL, both booking-alert addresses, your site URL, and
+   `Stripe: not configured`.
+5. Open the sheet — it now has all four tabs, formatted and ready.
 
-If it prints `NOT SET` for anything, fix that Script Property and run it again.
+If it prints `NOT SET` for the site URL, fix that Script Property and run it
+again. Running `setUp` a second time is harmless: it only creates what's
+missing, and never touches booking rows.
 
 ---
 
@@ -303,9 +321,11 @@ and emailed; they just come in as enquiries for you to invoice by hand.
 |---|---|
 | "Book Now" opens the old Google Form | `endpoint` in `index.html` is still empty, or the site hasn't been republished |
 | "We could not submit your booking" | Deployment is wrong. Re-check step 4: **Execute as: Me**, **Who has access: Anyone** |
-| `Missing Script Property: …` | A setting from step 3 is missing or misspelled |
+| `Missing Script Property: SITE_URL` | Add it in step 3 — it's the one setting with no default |
 | `Sheet tab "Bookings" is missing` | Run **`setUp`** once (step 3) |
-| Emails never arrive | Check spam first. Gmail allows ~100 script emails a day, Workspace ~1,500 — each booking sends 2 |
+| The sheet is still empty | `setUp` hasn't run, or it ran against a different sheet. Its log prints the URL it used — check that's the one you're looking at |
+| Only one of you gets the emails | Check the other address's spam folder, then the `NOTIFY_EMAIL` property and `DEFAULT_OWNERS` in `Code.gs` |
+| Emails never arrive | Check spam first. Gmail allows ~100 script emails a day, Workspace ~1,500 — each booking emails both owners and the attendee |
 | Stripe says "No such API key" | Test key with live mode, or vice versa. Also make sure you redeployed after changing it |
 | Paid on Stripe but the sheet says awaiting | The 15-minute sweep will catch it. To force it, run **`reconcilePendingBookings`** by hand |
 | Changed the code, nothing changed | You must **Deploy → Manage deployments → New version** every time |
