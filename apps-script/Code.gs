@@ -44,6 +44,13 @@ var LEGACY_BOOKINGS_SHEET = 'Bookings';
 var EVENTS_SHEET = 'Events';
 
 /**
+ * Bumped whenever this file changes. The ping reports it, so you can check
+ * from outside which version is actually deployed — pasting the code is not
+ * enough on its own, it has to be saved, and the web app redeployed.
+ */
+var CODE_VERSION = '2026-08-29.7';
+
+/**
  * Where a booking waits while its payment is in progress. Nothing reaches an
  * event's own tab until Stripe confirms the money arrived.
  */
@@ -153,7 +160,13 @@ function doGet(e) {
   }
 
   // Used to check the deployment is alive: .../exec?ping=1
-  return json_({ ok: true, service: orgName_() + ' bookings', stripe: !!stripeKey_() });
+  return json_({
+    ok: true,
+    service: orgName_() + ' bookings',
+    version: CODE_VERSION,
+    stripe: !!stripeKey_(),
+    sheetBuiltBy: config_('BUILT_BY_VERSION', 'setUp has not been run on this version')
+  });
 }
 
 /**
@@ -1054,8 +1067,10 @@ function setUp() {
 
   orderTabs_(spreadsheet);
   spreadsheet.setActiveSheet(spreadsheet.getSheetByName(EVENTS_SHEET));
+  PropertiesService.getScriptProperties().setProperty('BUILT_BY_VERSION', CODE_VERSION);
 
   var report = [
+    'Code version: ' + CODE_VERSION,
     'Spreadsheet: ' + spreadsheet.getName(),
     'URL: ' + spreadsheet.getUrl(),
     'Bookings tabs: ' + (eventTabs_().join(', ') || 'none yet'),
