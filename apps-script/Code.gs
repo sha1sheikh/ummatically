@@ -42,6 +42,12 @@ var BLUE = '#0000ff';
 var LEGACY_BOOKINGS_SHEET = 'Bookings';
 
 var EVENTS_SHEET = 'Events';
+
+/**
+ * Where a booking waits while its payment is in progress. Nothing reaches an
+ * event's own tab until Stripe confirms the money arrived.
+ */
+var PENDING_SHEET = 'Pending payment';
 var STRIPE_API = 'https://api.stripe.com/v1/';
 
 var COLUMNS = [
@@ -99,6 +105,20 @@ function ownerList_() {
 /** A single address for attendees to reply to. */
 function replyAddress_() {
   return owners_()[0];
+}
+
+/**
+ * 'paid-only'  (default) an event's tab holds paid bookings only. Unpaid
+ *              attempts wait on the Pending payment tab and the organisers are
+ *              emailed when the payment lands, not before.
+ * 'record-all' every attempt goes straight to the event's tab and emails the
+ *              organisers immediately, paid or not.
+ *
+ * Free events, and any booking taken while Stripe is not configured, always
+ * behave as 'record-all' — there is no payment to wait for.
+ */
+function bookingMode_() {
+  return config_('BOOKING_MODE', 'paid-only') === 'record-all' ? 'record-all' : 'paid-only';
 }
 
 function orgName_() {
@@ -239,6 +259,14 @@ function eventTabs_() {
     .filter(function (name) { return name && spreadsheet.getSheetByName(name); });
 }
 
+/** The staging tab, created on first use. */
+function pendingSheet_() {
+  var spreadsheet = book_();
+
+  return spreadsheet.getSheetByName(PENDING_SHEET)
+    || buildBookingsTab_(spreadsheet, PENDING_SHEET, '#b8791f');
+}
+
 /**
  * The bookings tab for an event, creating it — and its Events row — the first
  * time that event is booked.
@@ -273,7 +301,10 @@ function eventSheet_(eventId, eventTitle) {
   var name = wanted;
   var suffix = 2;
 
-  while (taken[name] || (!match && spreadsheet.getSheetByName(name))) {
+  // Only step aside for a tab that belongs to a *different* event. A tab left
+  // behind by this same event — its Events row deleted, say — is reused, so an
+  // event never ends up with its bookings split across two tabs.
+  while (taken[name] || !tabFreeFor_(spreadsheet.getSheetByName(name), eventId)) {
     name = wanted.slice(0, 86) + ' (' + suffix + ')';
     suffix++;
   }
@@ -283,6 +314,25 @@ function eventSheet_(eventId, eventTitle) {
   registerEventTab_(eventId, eventTitle, name, match);
 
   return sheet;
+}
+
+/** True when a tab is absent, empty, or already holds this event's bookings. */
+function tabFreeFor_(sheet, eventId) {
+  if (!sheet || sheet.getLastRow() < 2) {
+    return true;
+  }
+
+  var ids = sheet.getRange(2, columnIndex_('Event ID'), sheet.getLastRow() - 1, 1).getValues();
+
+  for (var i = 0; i < ids.length; i++) {
+    var id = String(ids[i][0]).trim();
+
+    if (id && id !== eventId) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 /** Records the tab name against the event, adding the event row if it is new. */
@@ -352,9 +402,21 @@ function createBooking_(body) {
       session = createCheckoutSession_(clean, ref);
     }
 
-    appendBooking_(clean, ref, session);
-    notifyOwner_(clean, ref, session ? 'Awaiting payment' : 'Enquiry');
-    emailAttendee_(clean, ref, session ? 'pending' : 'recorded');
+    // With no payment to wait for there is nothing to hold back.
+    var holding = session && bookingMode_() === 'paid-only';
+    var target = holding
+      ? pendingSheet_()
+      : eventSheet_(clean.eventId, clean.eventTitle);
+
+    appendBooking_(target, clean, ref, session);
+
+    if (holding) {
+      // The organisers hear about this once the money lands, in markPaid_.
+      emailAttendee_(clean, ref, 'pending');
+    } else {
+      notifyOwner_(clean, ref, session ? 'Awaiting payment' : 'Enquiry');
+      emailAttendee_(clean, ref, session ? 'pending' : 'recorded');
+    }
 
     return session
       ? { ok: true, ref: ref, checkoutUrl: session.url }
@@ -432,8 +494,8 @@ function reference_() {
   return 'UMM-' + stamp + '-' + suffix;
 }
 
-function appendBooking_(data, ref, session) {
-  eventSheet_(data.eventId, data.eventTitle).appendRow([
+function appendBooking_(sheet, data, ref, session) {
+  sheet.appendRow([
     new Date(),
     ref,
     session ? 'Awaiting payment' : 'Enquiry',
@@ -499,25 +561,42 @@ function spotsRemaining_(eventId) {
   return Math.max(capacity - placesTaken_(match), 0);
 }
 
-/** Places already held on an event's own tab, ignoring closed bookings. */
+/**
+ * Places held for an event: those confirmed on its own tab, plus any still
+ * waiting on the staging tab. Payments in progress have to count, or two people
+ * could take the same last place.
+ */
 function placesTaken_(event) {
-  var sheet = event.tab ? book_().getSheetByName(event.tab) : null;
+  var spreadsheet = book_();
+  var taken = 0;
 
+  if (event.tab) {
+    taken += placesOnSheet_(spreadsheet.getSheetByName(event.tab), null);
+  }
+
+  return taken + placesOnSheet_(spreadsheet.getSheetByName(PENDING_SHEET), event.id);
+}
+
+/** Open places on one sheet, optionally limited to a single event. */
+function placesOnSheet_(sheet, eventId) {
   if (!sheet || sheet.getLastRow() < 2) {
     return 0;
   }
 
-  var statusCol = columnIndex_('Status');
-  var placesCol = columnIndex_('Places');
-  var width = placesCol - statusCol + 1;
-  var rows = sheet.getRange(2, statusCol, sheet.getLastRow() - 1, width).getValues();
+  var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, COLUMNS.length).getValues();
+  var statusCol = columnIndex_('Status') - 1;
+  var placesCol = columnIndex_('Places') - 1;
+  var idCol = columnIndex_('Event ID') - 1;
   var taken = 0;
 
   rows.forEach(function (row) {
-    if (CLOSED_STATUSES.indexOf(String(row[0])) !== -1) {
+    if (eventId && String(row[idCol]).trim() !== eventId) {
       return;
     }
-    taken += parseInt(row[width - 1], 10) || 0;
+    if (CLOSED_STATUSES.indexOf(String(row[statusCol])) !== -1) {
+      return;
+    }
+    taken += parseInt(row[placesCol], 10) || 0;
   });
 
   return taken;
@@ -624,12 +703,21 @@ function markPaid_(session) {
   sheet.getRange(row, columnIndex_('Stripe Payment')).setValue(session.payment_intent || '');
   sheet.getRange(row, columnIndex_('Paid At')).setValue(new Date());
 
-  var ref = sheet.getRange(row, columnIndex_('Reference')).getValue();
+  var values = sheet.getRange(row, 1, 1, COLUMNS.length).getValues()[0];
+  var ref = values[columnIndex_('Reference') - 1];
+
+  // A booking that was waiting on payment now belongs on its event's tab.
+  if (sheet.getName() === PENDING_SHEET) {
+    var record = rowToBooking_(values);
+
+    eventSheet_(record.eventId, record.eventTitle).appendRow(values);
+    sheet.deleteRow(row);
+  }
 
   if (!alreadyPaid) {
-    var record = rowToBooking_(sheet.getRange(row, 1, 1, COLUMNS.length).getValues()[0]);
-    emailAttendee_(record, ref, 'paid');
-    notifyOwner_(record, ref, 'PAID');
+    var booking = rowToBooking_(values);
+    emailAttendee_(booking, ref, 'paid');
+    notifyOwner_(booking, ref, 'PAID');
   }
 
   return { ref: ref };
@@ -642,7 +730,7 @@ function markPaid_(session) {
  */
 function findBySession_(session) {
   var eventId = (session.metadata && session.metadata.eventId) || '';
-  var names = [];
+  var names = [PENDING_SHEET];
 
   if (eventId) {
     eventRows_().forEach(function (event) {
@@ -709,8 +797,8 @@ function rowToBooking_(row) {
 }
 
 /**
- * Catches anyone who paid but closed the tab before returning to the site.
- * Runs on a timer — see installTriggers().
+ * Catches anyone who paid but closed the tab before returning to the site, and
+ * expires stale holds. Runs on a timer — see installTriggers().
  */
 function reconcilePendingBookings() {
   if (!stripeKey_()) {
@@ -723,32 +811,35 @@ function reconcilePendingBookings() {
   var stampCol = columnIndex_('Timestamp');
   var cutoff = Date.now() - 1000 * 60 * 60 * 24 * 2;
 
-  eventTabs_().forEach(function (name) {
+  [PENDING_SHEET].concat(eventTabs_()).forEach(function (name) {
     var sheet = spreadsheet.getSheetByName(name);
 
     if (!sheet || sheet.getLastRow() < 2) {
       return;
     }
 
-    var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, COLUMNS.length).getValues();
+    // Bottom upwards, because a payment moves its row off the staging tab and
+    // would otherwise shift the rows still to be checked.
+    for (var row = sheet.getLastRow(); row >= 2; row--) {
+      var values = sheet.getRange(row, 1, 1, COLUMNS.length).getValues()[0];
 
-    rows.forEach(function (row, index) {
-      if (String(row[statusCol - 1]) !== 'Awaiting payment' || !row[sessionCol - 1]) {
-        return;
+      if (String(values[statusCol - 1]) !== 'Awaiting payment' || !values[sessionCol - 1]) {
+        continue;
       }
 
       try {
-        var session = stripe_('checkout/sessions/' + encodeURIComponent(row[sessionCol - 1]));
+        var session = stripe_('checkout/sessions/' + encodeURIComponent(values[sessionCol - 1]));
 
         if (session.payment_status === 'paid') {
           markPaid_(session);
-        } else if (session.status === 'expired' || new Date(row[stampCol - 1]).getTime() < cutoff) {
-          sheet.getRange(index + 2, statusCol).setValue('Expired');
+        } else if (session.status === 'expired'
+            || new Date(values[stampCol - 1]).getTime() < cutoff) {
+          sheet.getRange(row, statusCol).setValue('Expired');
         }
       } catch (error) {
-        console.error('Reconcile failed on "' + name + '" row ' + (index + 2) + ': ' + error.message);
+        console.error('Reconcile failed on "' + name + '" row ' + row + ': ' + error.message);
       }
-    });
+    }
   });
 }
 
@@ -873,6 +964,7 @@ function setUp() {
   var spreadsheet = book_();
 
   buildEvents_(spreadsheet);
+  pendingSheet_();
   migrateFromSingleTab_(spreadsheet);
 
   eventRows_().forEach(function (event) {
@@ -942,7 +1034,7 @@ function headerRow_(sheet, labels, widths) {
 }
 
 /** Creates one event's bookings tab, formatted and ready. */
-function buildBookingsTab_(spreadsheet, name) {
+function buildBookingsTab_(spreadsheet, name, colour) {
   var sheet = spreadsheet.insertSheet(name);
 
   headerRow_(sheet, COLUMNS,
@@ -976,7 +1068,7 @@ function buildBookingsTab_(spreadsheet, name) {
     sheet.getRange(1, 1, sheet.getMaxRows(), COLUMNS.length).createFilter();
   }
 
-  sheet.setTabColor(NAVY);
+  sheet.setTabColor(colour || NAVY);
 
   return sheet;
 }
@@ -1033,10 +1125,14 @@ function buildEvents_(spreadsheet) {
   headerRow_(sheet, EVENT_COLUMNS,
     [240, 300, 75, 65, 200, 180, 80, 60, 80, 80, 70, 90, 90, 90, 130, 130]);
 
+  // Titles match index.html exactly, so the first syncEventsFromSite() finds
+  // nothing to rename.
   var events = [
-    ['mens-summer-retreat-jul-2026', 'Men of Ihsan × Muslim Alpha Summer Retreat', 30, 115],
-    ['womens-taster-day-jul-2026', 'Women of Ihsan — Taster Day', 20, 75],
-    ['ikhwan-missions-retreat-jul-2026', 'Ikhwan Missions Retreat', 30, 105]
+    ['mens-summer-retreat-jul-2026',
+      'Men of Ihsan × Muslim Alpha Summer Retreat with Gabriel Al-Romaani', 30, 115],
+    ['womens-taster-day-jul-2026', 'Women of Ihsan – Taster Day', 20, 75],
+    ['ikhwan-missions-retreat-jul-2026',
+      'Ikhwan Missions Retreat with Muslims of Ihsan', 30, 105]
   ];
 
   events.forEach(function (event, index) {
@@ -1057,40 +1153,59 @@ function buildEvents_(spreadsheet) {
     .setFontWeight('normal').setWrap(true);
 }
 
-/** The per-event roll-up formulas, pointed at that event's own tab. */
+/** A column of one sheet, as an absolute range. */
+function sheetRange_(tabName, column) {
+  var letter = columnLetter_(columnIndex_(column));
+
+  return "'" + String(tabName).replace(/'/g, "''") + "'!$" + letter + '$2:$' + letter
+    + '$' + FORMULA_ROWS;
+}
+
+/**
+ * The per-event roll-up formulas. Confirmed bookings live on the event's own
+ * tab; anything still paying sits on the staging tab, so most figures are the
+ * two added together.
+ */
 function writeEventFormulas_(sheet, row, tabName) {
-  var quoted = "'" + tabName.replace(/'/g, "''") + "'!";
-  var status = quoted + '$' + columnLetter_(columnIndex_('Status')) + '$2:$'
-    + columnLetter_(columnIndex_('Status')) + '$' + FORMULA_ROWS;
-  var places = quoted + '$' + columnLetter_(columnIndex_('Places')) + '$2:$'
-    + columnLetter_(columnIndex_('Places')) + '$' + FORMULA_ROWS;
-  var totals = quoted + '$' + columnLetter_(columnIndex_('Total')) + '$2:$'
-    + columnLetter_(columnIndex_('Total')) + '$' + FORMULA_ROWS;
-  var refs = quoted + '$' + columnLetter_(columnIndex_('Reference')) + '$2:$'
-    + columnLetter_(columnIndex_('Reference')) + '$' + FORMULA_ROWS;
+  var status = sheetRange_(tabName, 'Status');
+  var places = sheetRange_(tabName, 'Places');
+  var totals = sheetRange_(tabName, 'Total');
+  var refs = sheetRange_(tabName, 'Reference');
 
-  var open = CLOSED_STATUSES.map(function (value) {
-    return status + ',"<>' + value + '"';
-  }).join(',');
+  var waitStatus = sheetRange_(PENDING_SHEET, 'Status');
+  var waitPlaces = sheetRange_(PENDING_SHEET, 'Places');
+  var waitTotals = sheetRange_(PENDING_SHEET, 'Total');
+  var waitIds = sheetRange_(PENDING_SHEET, 'Event ID');
+  var thisEvent = waitIds + ',$' + columnLetter_(eventColumnIndex_('Event ID')) + row;
 
-  var closed = CLOSED_STATUSES.map(function (value) {
-    return 'COUNTIF(' + status + ',"' + value + '")';
-  }).join('+');
+  var openOn = function (range) {
+    return CLOSED_STATUSES.map(function (value) {
+      return range + ',"<>' + value + '"';
+    }).join(',');
+  };
+
+  var closedOn = function (range) {
+    return CLOSED_STATUSES.map(function (value) {
+      return 'COUNTIF(' + range + ',"' + value + '")';
+    }).join('+');
+  };
 
   var capacity = '$' + columnLetter_(eventColumnIndex_('Capacity')) + row;
   var held = '$' + columnLetter_(eventColumnIndex_('Places Held')) + row;
 
   sheet.getRange(row, eventColumnIndex_('Bookings'), 1, 10).setFormulas([[
-    '=COUNTA(' + refs + ')',
+    '=COUNTA(' + refs + ')+COUNTIF(' + thisEvent + ')',
     '=COUNTIF(' + status + ',"Paid")',
-    '=COUNTIF(' + status + ',"Awaiting payment")',
+    '=COUNTIFS(' + thisEvent + ',' + waitStatus + ',"Awaiting payment")',
     '=COUNTIF(' + status + ',"Enquiry")',
-    '=' + closed,
-    '=SUMIFS(' + places + ',' + open + ')',
+    '=' + closedOn(status) + '+COUNTIFS(' + thisEvent + ',' + waitStatus + ',"Expired")'
+      + '+COUNTIFS(' + thisEvent + ',' + waitStatus + ',"Cancelled")',
+    '=SUMIFS(' + places + ',' + openOn(status) + ')'
+      + '+SUMIFS(' + waitPlaces + ',' + thisEvent + ',' + openOn(waitStatus) + ')',
     '=SUMIFS(' + places + ',' + status + ',"Paid")',
     '=IF(' + capacity + '="","",MAX(' + capacity + '-' + held + ',0))',
     '=SUMIFS(' + totals + ',' + status + ',"Paid")',
-    '=SUMIFS(' + totals + ',' + status + ',"Awaiting payment")'
+    '=SUMIFS(' + waitTotals + ',' + thisEvent + ',' + waitStatus + ',"Awaiting payment")'
   ]]).setFontFamily('Arial').setFontSize(10);
 
   sheet.getRange(row, eventColumnIndex_('Revenue Collected'), 1, 2).setNumberFormat('£#,##0.00');
@@ -1225,16 +1340,172 @@ function buildReadMe_(spreadsheet) {
   ]]).setFontFamily('Arial').setFontSize(9);
 }
 
-/** Runs the pending-payment sweep every 15 minutes. Run once. */
+/**
+ * Reads the events off the live website and brings the Events tab into line:
+ * new events get a row and a tab, renamed or repriced ones are updated, and
+ * anything still in the sheet but gone from the site is reported so you can
+ * decide whether it has simply finished.
+ *
+ * Your columns are left alone — Capacity is yours, and is never overwritten.
+ * Run it by hand after changing events, or let installTriggers() run it daily.
+ */
+function syncEventsFromSite() {
+  var url = siteUrl_();
+  var response = UrlFetchApp.fetch(url, { muteHttpExceptions: true, followRedirects: true });
+
+  if (response.getResponseCode() >= 400) {
+    throw new Error('Could not read ' + url + ' (HTTP ' + response.getResponseCode() + ').');
+  }
+
+  var found = parseEventsFromHtml_(response.getContentText());
+
+  if (!found.length) {
+    throw new Error('No events found at ' + url
+      + '. Check SITE_URL points at the page with the Book Now buttons.');
+  }
+
+  var sheet = book_().getSheetByName(EVENTS_SHEET);
+  var existing = eventRows_();
+  var added = [];
+  var updated = [];
+
+  found.forEach(function (event) {
+    var match = null;
+
+    for (var i = 0; i < existing.length; i++) {
+      if (existing[i].id === event.id) {
+        match = existing[i];
+        break;
+      }
+    }
+
+    if (!match) {
+      eventSheet_(event.id, event.title);
+
+      var row = eventRowFor_(event.id);
+
+      if (row) {
+        sheet.getRange(row, eventColumnIndex_('Event Name')).setValue(event.title);
+        sheet.getRange(row, eventColumnIndex_('Price')).setValue(event.price);
+        sheet.getRange(row, eventColumnIndex_('Notes')).setValue('Added from the website.');
+      }
+
+      added.push(event.id);
+      return;
+    }
+
+    var changes = [];
+    var nameCell = sheet.getRange(match.row, eventColumnIndex_('Event Name'));
+    var priceCell = sheet.getRange(match.row, eventColumnIndex_('Price'));
+
+    if (event.title && String(nameCell.getValue()) !== event.title) {
+      nameCell.setValue(event.title);
+      changes.push('name');
+    }
+
+    if (event.price !== '' && Number(priceCell.getValue()) !== Number(event.price)) {
+      priceCell.setValue(event.price);
+      changes.push('price');
+    }
+
+    // A tab may not exist yet for an event added straight to the sheet.
+    eventSheet_(event.id, event.title);
+
+    if (changes.length) {
+      updated.push(event.id + ' (' + changes.join(', ') + ')');
+    }
+  });
+
+  var onSite = found.map(function (event) { return event.id; });
+  var missing = existing.filter(function (event) {
+    return onSite.indexOf(event.id) === -1;
+  }).map(function (event) { return event.id; });
+
+  var report = [
+    'Read ' + found.length + ' event(s) from ' + url,
+    'Added: ' + (added.join(', ') || 'none'),
+    'Updated: ' + (updated.join(', ') || 'none'),
+    'In the sheet but not on the site: ' + (missing.join(', ') || 'none')
+      + (missing.length ? ' — past events, or an id changed on the site. Their bookings are untouched.' : '')
+  ].join('\n');
+
+  console.log(report);
+  return report;
+}
+
+/** Pulls the data-event-* attributes off each Book Now button. */
+function parseEventsFromHtml_(html) {
+  var buttons = html.match(/<a[^>]*\bdata-book\b[^>]*>/g) || [];
+  var events = [];
+  var seen = {};
+
+  buttons.forEach(function (tag) {
+    var attribute = function (name) {
+      var match = tag.match(new RegExp('data-event-' + name + '="([^"]*)"'));
+      return match ? decodeEntities_(match[1]) : '';
+    };
+
+    var id = attribute('id');
+
+    if (!id || seen[id]) {
+      return;
+    }
+
+    seen[id] = true;
+
+    var price = attribute('price');
+
+    events.push({
+      id: id,
+      title: attribute('title'),
+      price: price === '' ? '' : Number(price),
+      date: attribute('date'),
+      location: attribute('location')
+    });
+  });
+
+  return events;
+}
+
+function decodeEntities_(value) {
+  return String(value)
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#(\d+);/g, function (whole, code) { return String.fromCharCode(Number(code)); })
+    .replace(/&amp;/g, '&');
+}
+
+/** The Events row holding an id, or null. */
+function eventRowFor_(eventId) {
+  var rows = eventRows_();
+
+  for (var i = 0; i < rows.length; i++) {
+    if (rows[i].id === eventId) {
+      return rows[i].row;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Sweeps for finished payments every 15 minutes, and reads the website's events
+ * into the sheet once a day. Run once.
+ */
 function installTriggers() {
+  var handlers = ['reconcilePendingBookings', 'syncEventsFromSite'];
+
   ScriptApp.getProjectTriggers().forEach(function (trigger) {
-    if (trigger.getHandlerFunction() === 'reconcilePendingBookings') {
+    if (handlers.indexOf(trigger.getHandlerFunction()) !== -1) {
       ScriptApp.deleteTrigger(trigger);
     }
   });
 
   ScriptApp.newTrigger('reconcilePendingBookings').timeBased().everyMinutes(15).create();
-  console.log('Reconcile trigger installed.');
+  ScriptApp.newTrigger('syncEventsFromSite').timeBased().everyDays(1).atHour(4).create();
+
+  console.log('Triggers installed: payment sweep every 15 minutes, website sync daily at 4am.');
 }
 
 /** Sends a test booking through the whole flow without touching Stripe. */
