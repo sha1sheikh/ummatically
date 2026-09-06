@@ -5,7 +5,8 @@ takes event bookings and payments.
 
 | File | What it is |
 |---|---|
-| `index.html` | The whole site. Styles, scripts and images are inlined, so it runs from any static host with no build step |
+| `index.html` | The whole site — markup, styles and scripts in one file, no build step |
+| `images/` | Photographs, logo and icons. Referenced by `index.html`, so keep the folder alongside it |
 | `privacy.html` | Privacy policy, covering the health information the booking form collects |
 | `apps-script/Code.gs` | The backend: records bookings, emails you and the attendee, takes payment through Stripe |
 | `apps-script/appsscript.json` | Apps Script project manifest (permissions and deployment settings) |
@@ -63,7 +64,8 @@ event gets its own tab automatically. See SETUP.md for the details.
 
 ## Local preview
 
-No server needed — open `index.html` in a browser. To test the booking form
+No server needed — open `index.html` in a browser, with the `images/` folder
+beside it. To test the booking form
 locally, temporarily paste your Apps Script `/exec` URL into `endpoint` and set
 `SITE_URL` to a real published address, since Stripe cannot redirect back to a
 `file://` path.
