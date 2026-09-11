@@ -624,7 +624,10 @@ ul { margin: 0; padding: 0; list-style: none; }
 .site-footer__links { display: flex; flex-direction: column; gap: .75rem; }
 .site-footer__links a { display: flex; align-items: center; gap: .5rem; font-size: .875rem; color: hsl(var(--primary-foreground) / .7); transition: color .2s; }
 .site-footer__links a:hover { color: hsl(var(--primary-foreground)); }
-.site-footer__links svg { width: 1rem; height: 1rem; }
+.site-footer__links svg { width: 1rem; height: 1rem; flex: none; }
+.site-footer__contact { align-items: flex-start !important; }
+.site-footer__contact span { word-break: break-all; }
+.site-footer__contact svg { margin-top: .2rem; }
 
 .site-footer__bottom {
   margin-top: 4rem; padding-top: 2rem;
@@ -1484,7 +1487,8 @@ ul { margin: 0; padding: 0; list-style: none; }
         <div class="site-footer__links">
           <a href="https://www.instagram.com/ummattically/" target="_blank" rel="noopener noreferrer"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true" focusable="false"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>Instagram</a>
           <a href="https://m.youtube.com/@ummatically" target="_blank" rel="noopener noreferrer"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true" focusable="false"><path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17"/><path d="m10 15 5-3-5-3z"/></svg>YouTube</a>
-          <a href="mailto:abuobaydahalyafawe@gmail.com">Contact Us</a>
+          <a class="site-footer__contact" href="mailto:abuobaydahalyafawe@gmail.com"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg><span>abuobaydahalyafawe@gmail.com</span></a>
+          <a href="tel:+447922381864"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>07922 381864</a>
         </div>
       </div>
     </div>
