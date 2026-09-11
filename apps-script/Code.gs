@@ -48,7 +48,7 @@ var EVENTS_SHEET = 'Events';
  * from outside which version is actually deployed — pasting the code is not
  * enough on its own, it has to be saved, and the web app redeployed.
  */
-var CODE_VERSION = '2026-09-11.9';
+var CODE_VERSION = '2026-09-11.10';
 
 /**
  * Where a booking waits while its payment is in progress. Nothing reaches an
@@ -449,7 +449,7 @@ function createBooking_(body) {
     var ref = reference_();
     var session = null;
 
-    if (stripeKey_() && clean.total > 0) {
+    if (stripeKey_() && clean.total > 0 && !clean.offline) {
       session = createCheckoutSession_(clean, ref);
     }
 
@@ -465,7 +465,7 @@ function createBooking_(body) {
       // The organisers hear about this once the money lands, in markPaid_.
       emailAttendee_(clean, ref, 'pending');
     } else {
-      notifyOwner_(clean, ref, session ? 'Awaiting payment' : 'Enquiry');
+      notifyOwner_(clean, ref, session ? 'Awaiting payment' : (clean.offline ? 'TO INVOICE' : 'Enquiry'));
       emailAttendee_(clean, ref, session ? 'pending' : 'recorded');
     }
 
@@ -505,7 +505,10 @@ function sanitise_(body) {
     notes: trim(body.notes, 1000),
     photoConsent: !!body.photoConsent,
     terms: !!body.terms,
-    waiver: !!body.waiver
+    waiver: !!body.waiver,
+    // Some events are settled with the organisers rather than online. The page
+    // says so; a forged value only produces an enquiry, never a held place.
+    offline: body.paymentMode === 'offline'
   };
 }
 

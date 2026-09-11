@@ -332,6 +332,14 @@ agree, and they agree on the **Event ID**.
 
 `data-event-price` is the price **per place**, digits only — `115`, not `£115`.
 
+#### An event people do not pay for online
+
+Add `data-event-payment="offline"` to its Book Now button. The form then says no
+payment is taken, the button reads **Send booking request**, and the booking is
+recorded as an **Enquiry** for you to chase — the organisers' email subject is
+tagged `[TO INVOICE]`. The price is still recorded against the booking. Remove
+the attribute to put the event back on Stripe.
+
 #### An event that runs on several dates
 
 Give its button a `data-event-sessions` attribute holding one entry per date:
