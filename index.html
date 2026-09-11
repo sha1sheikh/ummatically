@@ -933,6 +933,13 @@ ul { margin: 0; padding: 0; list-style: none; }
   margin-bottom: 1.25rem;
 }
 .prose > p:first-child { font-size: 1.0625rem; color: hsl(var(--foreground)); }
+@media (min-width: 768px) {
+  .grid--events {
+    grid-template-columns: repeat(auto-fit, minmax(17rem, 24rem));
+    justify-content: center;
+  }
+}
+
 .disciplines { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
 @media (min-width: 720px) { .disciplines { grid-template-columns: repeat(3, 1fr); gap: 1.25rem; } }
 @media (min-width: 1024px) { .disciplines { gap: 2rem; } }
@@ -1062,32 +1069,7 @@ ul { margin: 0; padding: 0; list-style: none; }
           <h2 class="section-title">Your Next Chapter Starts Here</h2>
         </div>
       </div>
-      <div class="grid grid--3">
-        <article class="event-card reveal">
-          <div class="event-card__media">
-            <img src="images/men-of-ihsan-muslim-alpha-summer-retreat-with-gabrie.jpg" alt="Men of Ihsan × Muslim Alpha Summer Retreat with Gabriel Al-Romaani" loading="lazy" decoding="async" width="683" height="1024">
-            <div class="event-card__price">£115</div>
-          </div>
-          <div class="event-card__body">
-            <div class="event-card__meta-top">
-              <span class="event-card__type">brothers retreat</span>
-              <div class="difficulty" aria-label="Difficulty 3 of 5"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="is-on" aria-hidden="true" focusable="false"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="is-on" aria-hidden="true" focusable="false"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="is-on" aria-hidden="true" focusable="false"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true" focusable="false"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true" focusable="false"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg></div>
-            </div>
-            <h3 class="event-card__title">Men of Ihsan × Muslim Alpha Summer Retreat with Gabriel Al-Romaani</h3>
-            <div class="event-card__facts">
-              <div><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>Jul 25, 2026 · 2 Days</span></div>
-              <div><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true" focusable="false"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg><span>Bromsgrove, Worcestershire</span></div>
-            </div>
-            <div class="event-card__capacity">
-              <div class="capacity__labels">
-                <span>30 spots remaining</span>
-                <span>0% filled</span>
-              </div>
-              <div class="capacity__track"><div class="capacity__fill" style="width: 0%"></div></div>
-            </div>
-            <a class="btn btn--accent btn--block" href="mailto:abuobaydahalyafawe@gmail.com?subject=Booking%20enquiry" data-book data-event-id="mens-summer-retreat-jul-2026" data-event-title="Men of Ihsan × Muslim Alpha Summer Retreat with Gabriel Al-Romaani" data-event-type="brothers retreat" data-event-price="115" data-event-date="Jul 25, 2026 · 2 Days" data-event-location="Bromsgrove, Worcestershire">Book Now</a>
-          </div>
-        </article>
+      <div class="grid grid--3 grid--events">
         <article class="event-card reveal">
           <div class="event-card__media">
             <img src="images/women-of-ihsan-taster-day.jpg" alt="Women of Ihsan – Taster Day" loading="lazy" decoding="async" width="683" height="1024">
@@ -1111,31 +1093,6 @@ ul { margin: 0; padding: 0; list-style: none; }
               <div class="capacity__track"><div class="capacity__fill" style="width: 0%"></div></div>
             </div>
             <a class="btn btn--accent btn--block" href="mailto:abuobaydahalyafawe@gmail.com?subject=Booking%20enquiry" data-book data-event-id="womens-taster-day-2026-09-20" data-event-title="Women of Ihsan – Taster Day" data-event-type="personal development" data-event-price="75" data-event-date="Sun 20 Sep 2026 · 10am–3pm" data-event-location="B60, Worcestershire" data-event-sessions='[{"id": "womens-taster-day-2026-09-20", "label": "Sun 20 Sep 2026", "date": "Sun 20 Sep 2026 · 10am–3pm"}, {"id": "womens-taster-day-2026-10-03", "label": "Sat 3 Oct 2026", "date": "Sat 3 Oct 2026 · 10am–3pm"}, {"id": "womens-taster-day-2026-10-18", "label": "Sun 18 Oct 2026", "date": "Sun 18 Oct 2026 · 10am–3pm"}, {"id": "womens-taster-day-2026-10-31", "label": "Sat 31 Oct 2026", "date": "Sat 31 Oct 2026 · 10am–3pm"}, {"id": "womens-taster-day-2026-11-08", "label": "Sun 8 Nov 2026", "date": "Sun 8 Nov 2026 · 10am–3pm"}, {"id": "womens-taster-day-2026-11-21", "label": "Sat 21 Nov 2026", "date": "Sat 21 Nov 2026 · 10am–3pm"}, {"id": "womens-taster-day-2026-12-05", "label": "Sat 5 Dec 2026", "date": "Sat 5 Dec 2026 · 10am–3pm"}, {"id": "womens-taster-day-2026-12-13", "label": "Sun 13 Dec 2026", "date": "Sun 13 Dec 2026 · 10am–3pm"}, {"id": "womens-taster-day-2026-12-26", "label": "Sat 26 Dec 2026", "date": "Sat 26 Dec 2026 · 10am–3pm"}, {"id": "womens-taster-day-2026-12-27", "label": "Sun 27 Dec 2026", "date": "Sun 27 Dec 2026 · 10am–3pm"}]'>Book Now</a>
-          </div>
-        </article>
-        <article class="event-card reveal">
-          <div class="event-card__media">
-            <img src="images/ikhwan-missions-retreat-with-muslims-of-ihsan.jpg" alt="Ikhwan Missions Retreat with Muslims of Ihsan" loading="lazy" decoding="async" width="682" height="1024">
-            <div class="event-card__price">£105</div>
-          </div>
-          <div class="event-card__body">
-            <div class="event-card__meta-top">
-              <span class="event-card__type">brothers retreat</span>
-              <div class="difficulty" aria-label="Difficulty 3 of 5"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="is-on" aria-hidden="true" focusable="false"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="is-on" aria-hidden="true" focusable="false"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="is-on" aria-hidden="true" focusable="false"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true" focusable="false"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true" focusable="false"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg></div>
-            </div>
-            <h3 class="event-card__title">Ikhwan Missions Retreat with Muslims of Ihsan</h3>
-            <div class="event-card__facts">
-              <div><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>Jul 18, 2026 · 2 Days</span></div>
-              <div><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true" focusable="false"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg><span>Bromsgrove, Worcestershire</span></div>
-            </div>
-            <div class="event-card__capacity">
-              <div class="capacity__labels">
-                <span>30 spots remaining</span>
-                <span>0% filled</span>
-              </div>
-              <div class="capacity__track"><div class="capacity__fill" style="width: 0%"></div></div>
-            </div>
-            <a class="btn btn--accent btn--block" href="mailto:abuobaydahalyafawe@gmail.com?subject=Booking%20enquiry" data-book data-event-id="ikhwan-missions-retreat-jul-2026" data-event-title="Ikhwan Missions Retreat with Muslims of Ihsan" data-event-type="brothers retreat" data-event-price="105" data-event-date="Jul 18, 2026 · 2 Days" data-event-location="Bromsgrove, Worcestershire">Book Now</a>
           </div>
         </article>
       </div>
