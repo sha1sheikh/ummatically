@@ -48,7 +48,7 @@ var EVENTS_SHEET = 'Events';
  * from outside which version is actually deployed — pasting the code is not
  * enough on its own, it has to be saved, and the web app redeployed.
  */
-var CODE_VERSION = '2026-08-29.7';
+var CODE_VERSION = '2026-09-11.8';
 
 /**
  * Where a booking waits while its payment is in progress. Nothing reaches an
@@ -61,7 +61,8 @@ var COLUMNS = [
   'Timestamp', 'Reference', 'Status', 'Event', 'Event ID', 'Event Date', 'Location',
   'Name', 'Email', 'Phone', 'Age', 'Places', 'Unit Price', 'Total', 'Currency',
   'Emergency Contact', 'Emergency Phone', 'Dietary', 'Medical', 'Heard From', 'Notes',
-  'Photo Consent', 'Terms Accepted', 'Stripe Session', 'Stripe Payment', 'Paid At'
+  'Photo Consent', 'Terms Accepted', 'Stripe Session', 'Stripe Payment', 'Paid At',
+  'Waiver Accepted'
 ];
 
 /* ==========================================================================
@@ -503,7 +504,8 @@ function sanitise_(body) {
     heardFrom: trim(body.heardFrom, 80),
     notes: trim(body.notes, 1000),
     photoConsent: !!body.photoConsent,
-    terms: !!body.terms
+    terms: !!body.terms,
+    waiver: !!body.waiver
   };
 }
 
@@ -524,6 +526,9 @@ function validate_(data) {
   }
   if (!data.terms) {
     problems.push('Please accept the booking terms.');
+  }
+  if (!data.waiver) {
+    problems.push('Please confirm you have read the waiver.');
   }
   if (!data.eventTitle) {
     problems.push('That event could not be identified.');
@@ -571,7 +576,8 @@ function appendBooking_(sheet, data, ref, session) {
     data.terms ? 'Yes' : 'No',
     session ? session.id : '',
     '',
-    ''
+    '',
+    data.waiver ? 'Yes' : 'No'
   ]);
 }
 
@@ -871,7 +877,8 @@ function rowToBooking_(row) {
     heardFrom: at('Heard From'),
     notes: at('Notes'),
     photoConsent: at('Photo Consent') === 'Yes',
-    terms: true
+    terms: true,
+    waiver: at('Waiver Accepted') === 'Yes'
   };
 }
 
@@ -926,6 +933,33 @@ function reconcilePendingBookings() {
    Email
    ========================================================================== */
 
+/**
+ * The waiver, fetched from the live site so the attachment and the published
+ * page can never drift apart. A booking must never fail because the PDF is
+ * briefly unreachable, so this returns an empty list rather than throwing.
+ */
+function waiverAttachment_() {
+  try {
+    var base = siteUrl_();
+
+    if (base.slice(-1) !== '/') {
+      base += '/';
+    }
+
+    var response = UrlFetchApp.fetch(base + 'waiver.pdf', { muteHttpExceptions: true });
+
+    if (response.getResponseCode() !== 200) {
+      console.warn('Waiver PDF not reachable (HTTP ' + response.getResponseCode() + ') at ' + base + 'waiver.pdf');
+      return [];
+    }
+
+    return [response.getBlob().setName('Ummatically - Waiver and Consent.pdf')];
+  } catch (error) {
+    console.warn('Could not attach the waiver: ' + error.message);
+    return [];
+  }
+}
+
 function escape_(value) {
   return String(value === undefined || value === null ? '' : value)
     .replace(/&/g, '&amp;')
@@ -978,7 +1012,8 @@ function notifyOwner_(data, ref, state) {
     ['Medical', data.medical],
     ['Heard from', data.heardFrom],
     ['Notes', data.notes],
-    ['Photo consent', data.photoConsent ? 'Yes' : 'No']
+    ['Photo consent', data.photoConsent ? 'Yes' : 'No'],
+    ['Waiver accepted', data.waiver ? 'Yes' : 'No']
   ]);
 
   MailApp.sendEmail({
@@ -1005,7 +1040,7 @@ function emailAttendee_(data, ref, state) {
       subject: 'Your place is confirmed — ' + data.eventTitle,
       heading: 'You are booked in',
       intro: 'As-salamu alaykum ' + escape_(data.name) + ',<br><br>Your payment has gone through and your place is confirmed. We look forward to having you with us, in sha Allah.',
-      footer: 'Keep this email for your records. Reply to it if anything changes or if you need to cancel.'
+      footer: 'Your copy of the waiver is attached. Keep this email for your records, and reply to it if anything changes or if you need to cancel.'
     },
     pending: {
       subject: 'Complete your booking — ' + data.eventTitle,
@@ -1026,7 +1061,8 @@ function emailAttendee_(data, ref, state) {
     replyTo: replyAddress_(),
     name: org,
     subject: copy.subject,
-    htmlBody: shell_(copy.heading, copy.intro, summary, copy.footer)
+    htmlBody: shell_(copy.heading, copy.intro, summary, copy.footer),
+    attachments: waiverAttachment_()
   });
 }
 
@@ -1053,6 +1089,7 @@ function setUp() {
   // Rewrite the roll-ups every time. An older version of this script wrote
   // formulas that knew nothing about the staging tab, and they are only
   // otherwise written when a tab is first created.
+  repairBookingTabs_(spreadsheet);
   refreshEventFormulas_(spreadsheet);
 
   buildSummary_(spreadsheet);
@@ -1083,6 +1120,35 @@ function setUp() {
 
   console.log(report);
   return report;
+}
+
+/**
+ * Widens and re-labels the bookings tabs when this file gains a column. A sheet
+ * built by an earlier version has a narrower grid, and writing a row wider than
+ * the grid fails outright, so this runs before anything reads or writes one.
+ */
+function repairBookingTabs_(spreadsheet) {
+  var names = [PENDING_SHEET, ALL_SHEET].concat(eventTabs_());
+
+  names.forEach(function (name) {
+    var sheet = spreadsheet.getSheetByName(name);
+
+    if (!sheet) {
+      return;
+    }
+
+    var missing = COLUMNS.length - sheet.getMaxColumns();
+
+    if (missing > 0) {
+      sheet.insertColumnsAfter(sheet.getMaxColumns(), missing);
+    }
+
+    if (name !== ALL_SHEET) {
+      sheet.getRange(1, 1, 1, COLUMNS.length).setValues([COLUMNS])
+        .setFontFamily('Arial').setFontSize(10).setFontWeight('bold')
+        .setFontColor('#ffffff').setBackground(NAVY).setWrap(true);
+    }
+  });
 }
 
 /** Brings every event's roll-up formulas up to date with this version. */

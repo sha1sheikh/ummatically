@@ -69,6 +69,18 @@ Once step 3 has run, it will have:
 | **All bookings** | Every booking across every event, in one list |
 | **People** | One row per person: what they've booked, what they've paid, dietary and medical notes |
 | **Read me** | House rules and what a booking row looks like |
+| **Waiver Accepted** | The last column on each bookings tab — Yes once the attendee ticked the waiver box |
+
+### The waiver
+
+`waiver.html` is the horse riding and archery waiver. The booking form links to
+it and will not submit without the box ticked, and acceptance is recorded in the
+**Waiver Accepted** column against every booking.
+
+`waiver.pdf` is generated from that page and attached to each attendee's booking
+emails. The script fetches it from `SITE_URL`, so the attachment always matches
+the published page — if you edit the waiver, regenerate the PDF and both follow.
+If the PDF cannot be fetched the email still sends, just without it.
 
 Your privacy policy lives at `privacy.html`, linked from the footer. It is written
 around what the booking form actually asks for, health details included — read it

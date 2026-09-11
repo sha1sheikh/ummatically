@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Waiver &amp; Consent — Ummatically</title>
+<meta name="description" content="Horse riding and archery waiver and consent form. Please read before booking.">
+<link rel="icon" href="images/favicon.png" sizes="32x32">
+<link rel="apple-touch-icon" href="images/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --background: 30 33% 96%;
+  --foreground: 220 100% 21%;
+  --primary: 220 100% 21%;
+  --primary-foreground: 30 33% 96%;
+  --muted: 220 20% 90%;
+  --muted-foreground: 220 30% 45%;
+  --accent: 220 100% 35%;
+  --border: 220 30% 82%;
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-body);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: hsl(var(--accent)); text-decoration: underline; text-underline-offset: 2px; }
+a:hover { opacity: .8; }
+
+.masthead { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); padding: 2.5rem 1.5rem; }
+.masthead__inner { max-width: 44rem; margin-inline: auto; }
+.masthead a { color: hsl(var(--primary-foreground) / .7); text-decoration: none; font-size: .8125rem; }
+.masthead a:hover { color: hsl(var(--primary-foreground)); }
+.masthead h1 { font-family: var(--font-display); font-weight: 700; font-size: 1.875rem; line-height: 1.15; margin: 1rem 0 .5rem; }
+.masthead p { margin: 0; font-size: .875rem; color: hsl(var(--primary-foreground) / .65); }
+
+main { max-width: 44rem; margin-inline: auto; padding: 3rem 1.5rem 4rem; }
+
+.callout {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 2.5rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.0625rem;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+h2 {
+  font-family: var(--font-display); font-weight: 700;
+  font-size: 1.25rem; line-height: 1.3;
+  margin: 2.5rem 0 .75rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid hsl(var(--border));
+}
+main > h2:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+p, li { font-size: 1rem; }
+p { margin: 0 0 1rem; }
+ul { margin: 0 0 1.25rem; padding-left: 1.25rem; }
+li { margin-bottom: .625rem; }
+
+.risk {
+  background: hsl(var(--muted));
+  border-left: 3px solid hsl(var(--accent));
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+.risk p:last-child { margin-bottom: 0; }
+
+.declaration { border: 1px solid hsl(var(--border)); padding: 1.5rem; background: #fff; }
+.declaration ul { margin-bottom: 0; }
+.declaration li { font-weight: 600; }
+
+footer {
+  border-top: 1px solid hsl(var(--border));
+  margin-top: 3rem; padding-top: 1.5rem;
+  font-size: .8125rem; color: hsl(var(--muted-foreground));
+}
+:focus-visible { outline: 2px solid hsl(var(--accent)); outline-offset: 3px; }
+
+@media print {
+  .masthead { background: none; color: #000; padding: 0 0 1rem; }
+  .masthead a, footer a { display: none; }
+  .masthead p, .declaration li { color: #000; }
+  .callout { background: none; color: #000; border: 2px solid #000; }
+  main { padding: 0; max-width: none; }
+  body { font-size: 11pt; }
+}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead__inner">
+    <a href="index.html">&larr; Back to Ummatically</a>
+    <h1>Horse Riding and Archery<br>Waiver &amp; Consent Form</h1>
+    <p>Please read in full before booking a place.</p>
+  </div>
+</header>
+
+<main>
+
+<p class="callout">Important — please read before riding</p>
+
+<h2>The risks</h2>
+
+<div class="risk">
+  <p>Horse riding is an inherently dangerous activity. Risks include but are not
+  limited to: falling, being bitten, kicked, thrown, or injured due to the
+  unpredictable behaviour of horses.</p>
+</div>
+
+<ul>
+  <li>By taking part, you accept that you ride at your own risk.</li>
+  <li>The organisers have taken reasonable steps to ensure your safety, but it is impossible to remove all risks.</li>
+  <li>Helmets and appropriate footwear must be worn at all times.</li>
+</ul>
+
+<p>The organisers cannot accept responsibility for injury, loss, or damage.</p>
+
+<p>By participating, you confirm that you have read and understood the risks involved.</p>
+
+<h2>Your declaration</h2>
+
+<p>By accepting this waiver as part of your booking:</p>
+
+<div class="declaration">
+  <ul>
+    <li>I confirm that I understand the risks of horse riding and archery.</li>
+    <li>I agree that I participate voluntarily and at my own risk.</li>
+    <li>I accept that the organisers cannot be held liable for injury, loss, or damage except where caused by negligence.</li>
+    <li>I confirm that I am medically fit to ride.</li>
+  </ul>
+</div>
+
+<h2>How you accept this</h2>
+
+<p>When you book a place through this website you are asked to tick a box
+confirming you have read and accept this waiver. Your booking cannot be
+submitted without it, and your acceptance is recorded against your booking
+along with the date and time.</p>
+
+<p>A copy of this waiver is attached to your booking emails so you can keep it
+for your records. If anything here is unclear, or your circumstances change
+before the event, email
+<a href="mailto:abuobaydahalyafawe@gmail.com">abuobaydahalyafawe@gmail.com</a>
+before you attend.</p>
+
+<footer>
+  <p>Ummatically &middot; <a href="index.html">Home</a> &middot; <a href="privacy.html">Privacy Policy</a></p>
+</footer>
+
+</main>
+</body>
+</html>

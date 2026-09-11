@@ -8,6 +8,8 @@ takes event bookings and payments.
 | `index.html` | The whole site — markup, styles and scripts in one file, no build step |
 | `images/` | Photographs, logo and icons. Referenced by `index.html`, so keep the folder alongside it |
 | `privacy.html` | Privacy policy, covering the health information the booking form collects |
+| `waiver.html` | Horse riding and archery waiver. Linked from the booking form, which cannot be submitted without accepting it |
+| `waiver.pdf` | The same waiver, generated from `waiver.html`, attached to booking emails |
 | `apps-script/Code.gs` | The backend: records bookings, emails you and the attendee, takes payment through Stripe |
 | `apps-script/appsscript.json` | Apps Script project manifest (permissions and deployment settings) |
 | `SETUP.md` | **Start here.** Step-by-step guide to connecting the sheet, the emails and Stripe |

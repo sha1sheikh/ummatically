@@ -812,6 +812,26 @@ ul { margin: 0; padding: 0; list-style: none; }
 .field--check input { width: 1.125rem; height: 1.125rem; flex: none; margin-top: .125rem; -webkit-appearance: auto; appearance: auto; }
 .field--check label { font-size: .8125rem; font-weight: 400; line-height: 1.5; }
 
+.waiver {
+  display: flex;
+  gap: .875rem;
+  padding: 1rem 1.125rem;
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-left: 3px solid hsl(var(--accent));
+}
+.waiver__icon { flex: none; color: hsl(var(--accent)); padding-top: .125rem; }
+.waiver__icon svg { width: 1.375rem; height: 1.375rem; }
+.waiver__title { font-size: .875rem; font-weight: 600; }
+.waiver__text { margin-top: .25rem; font-size: .8125rem; line-height: 1.55; color: hsl(var(--muted-foreground)); }
+.waiver__links { margin-top: .625rem; display: flex; flex-wrap: wrap; gap: 1rem; }
+.waiver__links a {
+  font-size: .8125rem; font-weight: 600;
+  color: hsl(var(--accent));
+  text-decoration: underline; text-underline-offset: 2px;
+}
+.waiver__links a:hover { opacity: .8; }
+
 .booking__hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
 
 .booking__total {
@@ -1467,7 +1487,7 @@ ul { margin: 0; padding: 0; list-style: none; }
 
     <div class="site-footer__bottom">
       <p>© 2026 Ummatically. All rights reserved.</p>
-      <p><a href="privacy.html">Privacy Policy</a></p>
+      <p><a href="privacy.html">Privacy Policy</a> &middot; <a href="waiver.html">Waiver</a></p>
     </div>
   </div>
 </footer>
@@ -1585,6 +1605,22 @@ ul { margin: 0; padding: 0; list-style: none; }
       <fieldset class="booking__fieldset">
         <legend class="booking__legend">Confirm</legend>
         <div class="field-grid">
+          <div class="waiver">
+            <div class="waiver__icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></div>
+            <div class="waiver__body">
+              <p class="waiver__title">Horse Riding &amp; Archery Waiver</p>
+              <p class="waiver__text">Everyone taking part must read and accept this. It covers the risks involved, what we ask of you on the day, and what we can and cannot be responsible for.</p>
+              <p class="waiver__links">
+                <a href="waiver.html" target="_blank" rel="noopener noreferrer">Read the waiver</a>
+                <a href="waiver.pdf" target="_blank" rel="noopener noreferrer">Download PDF</a>
+              </p>
+            </div>
+          </div>
+          <div class="field field--check">
+            <input id="booking-waiver" name="waiver" type="checkbox" required>
+            <label for="booking-waiver">I have read and accept the Horse Riding &amp; Archery Waiver. <span class="req" aria-hidden="true">*</span></label>
+          </div>
+          <p class="field__error" data-error-for="waiver" hidden></p>
           <div class="field field--check">
             <input id="booking-terms" name="terms" type="checkbox" required>
             <label for="booking-terms">I confirm the details above are correct and I accept the booking terms and cancellation policy. <span class="req" aria-hidden="true">*</span></label>
@@ -2071,6 +2107,9 @@ window.UMMATICALLY_BOOKING = {
 		if (values.emergencyPhone.replace(/[^0-9]/g, '').length < 7) {
 			problems.push(['emergencyPhone', 'Please give an emergency contact number.']);
 		}
+		if (!values.waiver) {
+			problems.push(['waiver', 'Please confirm you have read the waiver.']);
+		}
 		if (!values.terms) {
 			problems.push(['terms', 'Please accept the booking terms to continue.']);
 		}
@@ -2101,6 +2140,7 @@ window.UMMATICALLY_BOOKING = {
 			values[key] = typeof value === 'string' ? value.trim() : value;
 		});
 
+		values.waiver = form.querySelector('[name="waiver"]').checked;
 		values.terms = form.querySelector('[name="terms"]').checked;
 		values.photoConsent = form.querySelector('[name="photoConsent"]').checked;
 		values.places = parseInt(values.places, 10) || 1;
