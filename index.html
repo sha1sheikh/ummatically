@@ -812,6 +812,40 @@ ul { margin: 0; padding: 0; list-style: none; }
 .field--check input { width: 1.125rem; height: 1.125rem; flex: none; margin-top: .125rem; -webkit-appearance: auto; appearance: auto; }
 .field--check label { font-size: .8125rem; font-weight: 400; line-height: 1.5; }
 
+.event-card__blurb {
+  margin-top: .625rem;
+  font-size: .8125rem;
+  line-height: 1.6;
+  color: hsl(var(--muted-foreground));
+}
+
+.booking__about {
+  padding: 1.5rem;
+  background: hsl(var(--muted));
+  border-bottom: 1px solid hsl(var(--border));
+  font-size: .875rem;
+  line-height: 1.65;
+  color: hsl(var(--foreground));
+}
+@media (min-width: 640px) { .booking__about { padding: 1.75rem 2rem; } }
+.booking__about p { margin-bottom: .875rem; }
+.booking__about p:last-child { margin-bottom: 0; }
+.event-about__lead { font-weight: 600; margin-bottom: .625rem !important; }
+.event-about__list {
+  list-style: none; margin: 0 0 1rem; padding: 0;
+  display: grid; gap: .5rem .75rem;
+}
+@media (min-width: 480px) { .event-about__list { grid-template-columns: 1fr 1fr; } }
+.event-about__list li { display: flex; align-items: center; gap: .5rem; font-weight: 600; }
+.event-about__list svg { width: 1.125rem; height: 1.125rem; flex: none; color: hsl(var(--accent)); }
+.event-about__note {
+  padding-top: .875rem;
+  border-top: 1px solid hsl(var(--border));
+  font-size: .8125rem;
+  color: hsl(var(--muted-foreground));
+}
+.event-about__note a { color: hsl(var(--accent)); font-weight: 600; white-space: nowrap; }
+
 .waiver {
   display: flex;
   gap: .875rem;
@@ -1081,6 +1115,19 @@ ul { margin: 0; padding: 0; list-style: none; }
               <div class="difficulty" aria-label="Difficulty 2 of 5"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="is-on" aria-hidden="true" focusable="false"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="is-on" aria-hidden="true" focusable="false"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true" focusable="false"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true" focusable="false"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true" focusable="false"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg></div>
             </div>
             <h3 class="event-card__title">Women of Ihsan – Taster Day</h3>
+            <p class="event-card__blurb">A one-day taster at our farm: archery, horse care, time in nature and sisterhood — for complete beginners and experienced riders alike.</p>
+            <div class="event-about" hidden data-event-about>
+              <p>We’re inviting Muslim women of all backgrounds to join us for a special one-day taster session at our farm — a chance to reconnect with traditional skills, nature and good company in a positive Islamic environment.</p>
+              <p class="event-about__lead">The day will include:</p>
+              <ul class="event-about__list">
+                <li><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m2 22 3-3"/><path d="M18 9 9 18"/><path d="M6 6 2 2"/><circle cx="12" cy="12" r="9"/></svg><span>Archery</span></li>
+                <li><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M19 3v4a2 2 0 0 1-.6 1.4L15 12v4l-4 3-3-5-3-2 2-6 4-3h6a2 2 0 0 1 2 2Z"/></svg><span>Horse care</span></li>
+                <li><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 22v-7"/><path d="M9 15H5a3 3 0 0 1 0-6h.5A4.5 4.5 0 0 1 12 4a4.5 4.5 0 0 1 6.5 5h.5a3 3 0 0 1 0 6h-4"/></svg><span>Time in nature</span></li>
+                <li><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Sisterhood</span></li>
+              </ul>
+              <p>Whether you’re completely new or already experienced, this is a great opportunity to learn new skills, build confidence, challenge yourself and enjoy a unique outdoor experience alongside other Muslims.</p>
+              <p class="event-about__note"><strong>£75 per person.</strong> Spaces on each date are limited. Questions before you book? Call or message us on <a href="tel:+447922381864">07922 381864</a>.</p>
+            </div>
             <div class="event-card__facts">
               <div><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>10 dates · Sun 20 Sep – Sun 27 Dec 2026</span></div>
               <div><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true" focusable="false"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg><span>B60, Worcestershire</span></div>
@@ -1466,6 +1513,8 @@ ul { margin: 0; padding: 0; list-style: none; }
         <div data-booking-location-wrap><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg><span data-booking-location></span></div>
       </div>
     </div>
+
+    <div class="booking__about" data-booking-about hidden></div>
 
     <form class="booking__body" data-booking-form novalidate>
       <input type="hidden" name="eventId" data-booking-field="eventId">
@@ -1947,6 +1996,7 @@ window.UMMATICALLY_BOOKING = {
 	var sessions = [];
 	var availability = {};
 
+	var aboutPanel = dialog.querySelector('[data-booking-about]');
 	var sessionField = dialog.querySelector('[data-session-field]');
 	var sessionSelect = dialog.querySelector('[data-booking-session]');
 
@@ -2039,6 +2089,11 @@ window.UMMATICALLY_BOOKING = {
 		text('[data-booking-title]', data.eventTitle || 'Reserve your place');
 		text('[data-booking-date]', data.eventDate);
 		text('[data-booking-location]', data.eventLocation);
+
+		var about = trigger.closest('.event-card');
+		about = about ? about.querySelector('[data-event-about]') : null;
+		aboutPanel.innerHTML = about ? about.innerHTML : '';
+		aboutPanel.hidden = !about;
 
 		dialog.querySelector('[data-booking-date-wrap]').hidden = !data.eventDate;
 		dialog.querySelector('[data-booking-location-wrap]').hidden = !data.eventLocation;
