@@ -48,7 +48,7 @@ var EVENTS_SHEET = 'Events';
  * from outside which version is actually deployed — pasting the code is not
  * enough on its own, it has to be saved, and the web app redeployed.
  */
-var CODE_VERSION = '2026-09-11.8';
+var CODE_VERSION = '2026-09-11.9';
 
 /**
  * Where a booking waits while its payment is in progress. Nothing reaches an
@@ -1826,24 +1826,72 @@ function parseEventsFromHtml_(html) {
 
     var id = attribute('id');
 
-    if (!id || seen[id]) {
+    if (!id) {
+      return;
+    }
+
+    var price = attribute('price');
+    var title = attribute('title');
+    var location = attribute('location');
+    var unit = price === '' ? '' : Number(price);
+
+    // An event that runs on several dates carries them as JSON. Each date is
+    // its own event: its own row, its own tab, its own places.
+    var sessions = parseSessions_(tag);
+
+    if (sessions.length) {
+      sessions.forEach(function (session) {
+        if (!session.id || seen[session.id]) {
+          return;
+        }
+
+        seen[session.id] = true;
+
+        events.push({
+          id: session.id,
+          title: title + ' — ' + session.label,
+          price: unit,
+          date: session.date,
+          location: location
+        });
+      });
+
+      return;
+    }
+
+    if (seen[id]) {
       return;
     }
 
     seen[id] = true;
 
-    var price = attribute('price');
-
     events.push({
       id: id,
-      title: attribute('title'),
-      price: price === '' ? '' : Number(price),
+      title: title,
+      price: unit,
       date: attribute('date'),
-      location: attribute('location')
+      location: location
     });
   });
 
   return events;
+}
+
+/** The data-event-sessions payload on a Book Now button, if it has one. */
+function parseSessions_(tag) {
+  var match = tag.match(/data-event-sessions='([^']*)'/);
+
+  if (!match) {
+    return [];
+  }
+
+  try {
+    var parsed = JSON.parse(decodeEntities_(match[1]));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.warn('Could not read data-event-sessions: ' + error.message);
+    return [];
+  }
 }
 
 function decodeEntities_(value) {
@@ -1852,6 +1900,7 @@ function decodeEntities_(value) {
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#(\d+);/g, function (whole, code) { return String.fromCharCode(Number(code)); })
+    .replace(/&#x([0-9a-fA-F]+);/g, function (whole, code) { return String.fromCharCode(parseInt(code, 16)); })
     .replace(/&amp;/g, '&');
 }
 

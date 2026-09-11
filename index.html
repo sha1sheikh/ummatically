@@ -1100,17 +1100,17 @@ ul { margin: 0; padding: 0; list-style: none; }
             </div>
             <h3 class="event-card__title">Women of Ihsan – Taster Day</h3>
             <div class="event-card__facts">
-              <div><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>Sep 20, 2026 · 10am–3pm</span></div>
+              <div><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>10 dates · Sun 20 Sep – Sun 27 Dec 2026</span></div>
               <div><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true" focusable="false"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg><span>B60, Worcestershire</span></div>
             </div>
             <div class="event-card__capacity">
               <div class="capacity__labels">
-                <span>20 spots remaining</span>
-                <span>0% filled</span>
+                <span>Choose your date when booking</span>
+                <span>10 dates</span>
               </div>
               <div class="capacity__track"><div class="capacity__fill" style="width: 0%"></div></div>
             </div>
-            <a class="btn btn--accent btn--block" href="mailto:abuobaydahalyafawe@gmail.com?subject=Booking%20enquiry" data-book data-event-id="womens-taster-day-jul-2026" data-event-title="Women of Ihsan – Taster Day" data-event-type="personal development" data-event-price="75" data-event-date="Sep 20, 2026 · 10am–3pm" data-event-location="B60, Worcestershire">Book Now</a>
+            <a class="btn btn--accent btn--block" href="mailto:abuobaydahalyafawe@gmail.com?subject=Booking%20enquiry" data-book data-event-id="womens-taster-day-2026-09-20" data-event-title="Women of Ihsan – Taster Day" data-event-type="personal development" data-event-price="75" data-event-date="Sun 20 Sep 2026 · 10am–3pm" data-event-location="B60, Worcestershire" data-event-sessions='[{"id": "womens-taster-day-2026-09-20", "label": "Sun 20 Sep 2026", "date": "Sun 20 Sep 2026 · 10am–3pm"}, {"id": "womens-taster-day-2026-10-03", "label": "Sat 3 Oct 2026", "date": "Sat 3 Oct 2026 · 10am–3pm"}, {"id": "womens-taster-day-2026-10-18", "label": "Sun 18 Oct 2026", "date": "Sun 18 Oct 2026 · 10am–3pm"}, {"id": "womens-taster-day-2026-10-31", "label": "Sat 31 Oct 2026", "date": "Sat 31 Oct 2026 · 10am–3pm"}, {"id": "womens-taster-day-2026-11-08", "label": "Sun 8 Nov 2026", "date": "Sun 8 Nov 2026 · 10am–3pm"}, {"id": "womens-taster-day-2026-11-21", "label": "Sat 21 Nov 2026", "date": "Sat 21 Nov 2026 · 10am–3pm"}, {"id": "womens-taster-day-2026-12-05", "label": "Sat 5 Dec 2026", "date": "Sat 5 Dec 2026 · 10am–3pm"}, {"id": "womens-taster-day-2026-12-13", "label": "Sun 13 Dec 2026", "date": "Sun 13 Dec 2026 · 10am–3pm"}, {"id": "womens-taster-day-2026-12-26", "label": "Sat 26 Dec 2026", "date": "Sat 26 Dec 2026 · 10am–3pm"}, {"id": "womens-taster-day-2026-12-27", "label": "Sun 27 Dec 2026", "date": "Sun 27 Dec 2026 · 10am–3pm"}]'>Book Now</a>
           </div>
         </article>
         <article class="event-card reveal">
@@ -1566,6 +1566,11 @@ ul { margin: 0; padding: 0; list-style: none; }
       <fieldset class="booking__fieldset">
         <legend class="booking__legend">Your place</legend>
         <div class="field-grid field-grid--2">
+          <div class="field field--full" data-session-field hidden>
+            <label for="booking-session">Which date? <span class="req" aria-hidden="true">*</span></label>
+            <select id="booking-session" name="sessionId" data-booking-session></select>
+            <p class="field__error" data-error-for="sessionId" hidden></p>
+          </div>
           <div class="field">
             <label for="booking-places">Number of places</label>
             <select id="booking-places" name="places" data-booking-places>
@@ -1982,6 +1987,71 @@ window.UMMATICALLY_BOOKING = {
 	var lastTrigger = null;
 	var unitPrice = 0;
 	var sending = false;
+	var sessions = [];
+	var availability = {};
+
+	var sessionField = dialog.querySelector('[data-session-field]');
+	var sessionSelect = dialog.querySelector('[data-booking-session]');
+
+	/* ------------------------------------------------------------------
+	 * Events that run on several dates. The visitor picks one, and each
+	 * date is its own event behind the scenes so it has its own places.
+	 * ---------------------------------------------------------------- */
+	var parseSessions = function (raw) {
+		if (!raw) {
+			return [];
+		}
+
+		try {
+			var parsed = JSON.parse(raw);
+			return Array.isArray(parsed) ? parsed : [];
+		} catch (error) {
+			return [];
+		}
+	};
+
+	var fillSessions = function () {
+		sessionField.hidden = !sessions.length;
+		sessionSelect.innerHTML = '';
+
+		if (!sessions.length) {
+			return;
+		}
+
+		var placeholder = document.createElement('option');
+		placeholder.value = '';
+		placeholder.textContent = 'Please choose a date…';
+		sessionSelect.appendChild(placeholder);
+
+		sessions.forEach(function (session) {
+			var option = document.createElement('option');
+			var left = availability[session.id];
+
+			option.value = session.id;
+			option.textContent = session.label;
+			option.dataset.date = session.date;
+
+			if (left && left.remaining !== null && left.remaining !== undefined) {
+				if (left.remaining <= 0) {
+					option.textContent += ' — fully booked';
+					option.disabled = true;
+				} else if (left.remaining <= 5) {
+					option.textContent += ' — ' + left.remaining + ' left';
+				}
+			}
+
+			sessionSelect.appendChild(option);
+		});
+	};
+
+	var chosenSession = function () {
+		if (!sessions.length) {
+			return null;
+		}
+
+		var option = sessionSelect.options[sessionSelect.selectedIndex];
+		return option && option.value ? { id: option.value, date: option.dataset.date } : null;
+	};
 
 	var ICON_TICK = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg>';
 	var ICON_INFO = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>';
@@ -2005,6 +2075,8 @@ window.UMMATICALLY_BOOKING = {
 
 		lastTrigger = trigger;
 		unitPrice = parseFloat(data.eventPrice || '0') || 0;
+		sessions = parseSessions(data.eventSessions);
+		fillSessions();
 
 		text('[data-booking-type]', data.eventType || 'Booking');
 		text('[data-booking-title]', data.eventTitle || 'Reserve your place');
@@ -2107,6 +2179,9 @@ window.UMMATICALLY_BOOKING = {
 		if (values.emergencyPhone.replace(/[^0-9]/g, '').length < 7) {
 			problems.push(['emergencyPhone', 'Please give an emergency contact number.']);
 		}
+		if (sessions.length && !values.sessionId) {
+			problems.push(['sessionId', 'Please choose which date you would like.']);
+		}
 		if (!values.waiver) {
 			problems.push(['waiver', 'Please confirm you have read the waiver.']);
 		}
@@ -2146,6 +2221,17 @@ window.UMMATICALLY_BOOKING = {
 		values.places = parseInt(values.places, 10) || 1;
 		values.unitPrice = unitPrice;
 		values.total = unitPrice * values.places;
+
+		// The chosen date decides which event this booking belongs to.
+		var session = chosenSession();
+
+		if (session) {
+			values.eventId = session.id;
+			values.eventDate = session.date;
+			// The date is part of the name so each one gets its own tab and
+			// register rather than ten events sharing a title.
+			values.eventTitle = values.eventTitle + ' — ' + session.label;
+		}
 
 		return values;
 	};
@@ -2410,8 +2496,27 @@ window.UMMATICALLY_BOOKING = {
 	 * ---------------------------------------------------------------- */
 	var showAvailability = function (events) {
 		triggers.forEach(function (trigger) {
-			var info = events[trigger.dataset.eventId];
 			var card = trigger.closest('.event-card');
+			var own = parseSessions(trigger.dataset.eventSessions);
+			var info = events[trigger.dataset.eventId];
+
+			// A multi-date event reports the whole series on its card.
+			if (own.length) {
+				var totals = { capacity: 0, held: 0, remaining: 0, capped: false };
+
+				own.forEach(function (session) {
+					var each = events[session.id];
+
+					if (each && each.remaining !== null && each.remaining !== undefined) {
+						totals.capacity += each.capacity || 0;
+						totals.held += each.held || 0;
+						totals.remaining += each.remaining;
+						totals.capped = true;
+					}
+				});
+
+				info = totals.capped ? totals : null;
+			}
 
 			if (!info || !card || info.remaining === null) {
 				return;
@@ -2425,10 +2530,11 @@ window.UMMATICALLY_BOOKING = {
 			if (labels.length) {
 				labels[0].textContent = info.remaining === 0
 					? 'Fully booked'
-					: info.remaining + (1 === info.remaining ? ' spot remaining' : ' spots remaining');
+					: info.remaining + (1 === info.remaining ? ' spot remaining' : ' spots remaining')
+						+ (own.length ? ' across ' + own.length + ' dates' : '');
 			}
 			if (labels.length > 1) {
-				labels[1].textContent = filled + '% filled';
+				labels[1].textContent = own.length ? own.length + ' dates' : filled + '% filled';
 			}
 			if (fill) {
 				fill.style.width = filled + '%';
@@ -2445,7 +2551,13 @@ window.UMMATICALLY_BOOKING = {
 	if (endpoint) {
 		post({ action: 'availability' }).then(function (data) {
 			if (data && data.ok && data.events) {
+				availability = data.events;
 				showAvailability(data.events);
+
+				// Refresh the picker if the dialog is already open.
+				if (sessions.length) {
+					fillSessions();
+				}
 			}
 		}).catch(function () {
 			// Leave the printed numbers as they are.

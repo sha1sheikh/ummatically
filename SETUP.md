@@ -332,6 +332,23 @@ agree, and they agree on the **Event ID**.
 
 `data-event-price` is the price **per place**, digits only — `115`, not `£115`.
 
+#### An event that runs on several dates
+
+Give its button a `data-event-sessions` attribute holding one entry per date:
+
+```html
+data-event-sessions='[{"id":"womens-taster-day-2026-09-20","label":"Sun 20 Sep 2026","date":"Sun 20 Sep 2026 · 10am–3pm"},…]'
+```
+
+The card then advertises the series, and the booking form asks the visitor to
+pick a date. **Each date is its own event behind the scenes** — its own Events
+row, its own bookings tab, and its own capacity — so 20 places on one Sunday
+does not use up the places on the next. Dates that fill up show as fully booked
+in the picker and cannot be chosen.
+
+Set Capacity on each of those rows after running the sync. Until you do they are
+uncapped.
+
 **Then run `syncEventsFromSite`** from the Apps Script function dropdown. It
 reads your published site and brings the Events tab into line:
 
