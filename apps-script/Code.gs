@@ -48,7 +48,7 @@ var EVENTS_SHEET = 'Events';
  * from outside which version is actually deployed — pasting the code is not
  * enough on its own, it has to be saved, and the web app redeployed.
  */
-var CODE_VERSION = '2026-09-13.11';
+var CODE_VERSION = '2026-09-13.12';
 
 /**
  * Where a booking waits while its payment is in progress. Nothing reaches an
@@ -508,8 +508,20 @@ function sanitise_(body) {
     waiver: !!body.waiver,
     // Some events are settled with the organisers rather than online. The page
     // says so; a forged value only produces an enquiry, never a held place.
-    offline: body.paymentMode === 'offline'
+    offline: body.paymentMode === 'offline',
+    payLink: stripePayLink_(body.payLink)
   };
+}
+
+/**
+ * A Stripe payment link, or nothing. The page supplies this, and it ends up in
+ * an email we send, so only Stripe's own hosted payment domain is accepted —
+ * anything else is dropped rather than passed on.
+ */
+function stripePayLink_(value) {
+  var link = String(value || '').trim();
+
+  return /^https:\/\/buy\.stripe\.com\/[A-Za-z0-9_\-]+$/.test(link) ? link : '';
 }
 
 function validate_(data) {
@@ -985,10 +997,11 @@ function rows_(pairs) {
   }).join('');
 }
 
-function shell_(heading, intro, body, footer) {
+function shell_(heading, intro, body, footer, action) {
   return '<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#00175c">' +
     '<h2 style="margin:0 0 8px;font-size:20px">' + escape_(heading) + '</h2>' +
     '<p style="margin:0 0 20px;color:#5b6472;font-size:14px;line-height:1.6">' + intro + '</p>' +
+    (action || '') +
     '<table style="width:100%;border-collapse:collapse;font-size:14px;border-top:1px solid #d3dced;border-bottom:1px solid #d3dced;padding:8px 0">' + body + '</table>' +
     (footer ? '<p style="margin:20px 0 0;color:#5b6472;font-size:13px;line-height:1.6">' + footer + '</p>' : '') +
     '<p style="margin:24px 0 0;color:#8b93a1;font-size:12px">' + escape_(orgName_()) + '</p>' +
@@ -1027,6 +1040,23 @@ function notifyOwner_(data, ref, state) {
   });
 }
 
+function payButton_(data) {
+  if (!data.payLink) {
+    return '';
+  }
+
+  return '<table style="margin:20px 0"><tr><td style="background:#0022b3;padding:14px 28px">'
+    + '<a href="' + escape_(data.payLink) + '" style="color:#ffffff;font-weight:600;font-size:15px;'
+    + 'text-decoration:none;letter-spacing:.02em">Pay now &rarr;</a>'
+    + '</td></tr></table>'
+    + '<p style="margin:0 0 20px;color:#5b6472;font-size:13px">Your place is held once payment is received.'
+    + (data.places > 1
+      ? ' You are booking ' + data.places + ' places, so set the quantity to ' + data.places
+        + ' on the payment page — the total should come to ' + money_(data.total) + '.'
+      : '')
+    + '</p>';
+}
+
 function emailAttendee_(data, ref, state) {
   var org = orgName_();
   var summary = rows_([
@@ -1054,7 +1084,10 @@ function emailAttendee_(data, ref, state) {
     recorded: {
       subject: 'We have your booking request — ' + data.eventTitle,
       heading: 'Request received',
-      intro: 'As-salamu alaykum ' + escape_(data.name) + ',<br><br>Jazakum Allahu khayran for your interest. We have your details and will be in touch shortly to confirm your place and arrange payment.',
+      intro: 'As-salamu alaykum ' + escape_(data.name) + ',<br><br>Jazakum Allahu khayran for your interest. We have your details'
+        + (data.payLink
+          ? ' and your place is held once payment is received. You can pay using the button below.'
+          : ' and will be in touch shortly to confirm your place and arrange payment.'),
       footer: 'Reply to this email if you need to change anything.'
     }
   }[state];
@@ -1064,7 +1097,7 @@ function emailAttendee_(data, ref, state) {
     replyTo: replyAddress_(),
     name: org,
     subject: copy.subject,
-    htmlBody: shell_(copy.heading, copy.intro, summary, copy.footer),
+    htmlBody: shell_(copy.heading, copy.intro, summary, copy.footer, 'paid' === state ? '' : payButton_(data)),
     attachments: waiverAttachment_()
   });
 }

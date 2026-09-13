@@ -340,6 +340,16 @@ recorded as an **Enquiry** for you to chase — the organisers' email subject is
 tagged `[TO INVOICE]`. The price is still recorded against the booking. Remove
 the attribute to put the event back on Stripe.
 
+Add `data-event-pay-link="https://buy.stripe.com/…"` as well and the booking
+confirmation, and the attendee's email, carry a **Pay now** button straight to
+that Stripe payment link. Only `buy.stripe.com` links are accepted — anything
+else is dropped rather than emailed out.
+
+> A payment link is priced per place. Somebody booking more than one is told to
+> set the quantity on the Stripe page, and given the total to expect. If you
+> would rather that were automatic, turn on **adjustable quantity** on the link
+> in Stripe.
+
 #### An event that runs on several dates
 
 Give its button a `data-event-sessions` attribute holding one entry per date:
