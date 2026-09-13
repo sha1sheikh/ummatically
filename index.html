@@ -2159,6 +2159,7 @@ window.UMMATICALLY_BOOKING = {
 			option.value = session.id;
 			option.textContent = session.label;
 			option.dataset.date = session.date;
+			option.dataset.label = session.label;
 
 			if (left && left.remaining !== null && left.remaining !== undefined) {
 				if (left.remaining <= 0) {
@@ -2179,7 +2180,10 @@ window.UMMATICALLY_BOOKING = {
 		}
 
 		var option = sessionSelect.options[sessionSelect.selectedIndex];
-		return option && option.value ? { id: option.value, date: option.dataset.date } : null;
+
+		return option && option.value
+			? { id: option.value, date: option.dataset.date, label: option.dataset.label }
+			: null;
 	};
 
 	var ICON_TICK = '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"/></svg>';
@@ -2369,10 +2373,13 @@ window.UMMATICALLY_BOOKING = {
 
 		if (session) {
 			values.eventId = session.id;
-			values.eventDate = session.date;
+			values.eventDate = session.date || values.eventDate;
+
 			// The date is part of the name so each one gets its own tab and
 			// register rather than ten events sharing a title.
-			values.eventTitle = values.eventTitle + ' — ' + session.label;
+			if (session.label) {
+				values.eventTitle = values.eventTitle + ' — ' + session.label;
+			}
 		}
 
 		return values;
