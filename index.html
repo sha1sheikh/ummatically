@@ -988,6 +988,52 @@ ul { margin: 0; padding: 0; list-style: none; }
   }
 }
 
+.trailer { position: relative; max-width: 56rem; margin-inline: auto; }
+.trailer__poster {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: #000;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.trailer__poster img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  opacity: .78;
+  transition: opacity .4s var(--ease), transform .7s var(--ease);
+}
+.trailer__poster:hover img { opacity: .95; transform: scale(1.02); }
+.trailer__play {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 4.5rem; height: 4.5rem;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+  box-shadow: 0 8px 30px -6px rgba(0, 0, 0, .5);
+  transition: transform .3s var(--ease), background-color .3s;
+}
+@media (min-width: 768px) { .trailer__play { width: 5.5rem; height: 5.5rem; } }
+.trailer__poster:hover .trailer__play { transform: translate(-50%, -50%) scale(1.08); }
+.trailer__play svg { width: 1.75rem; height: 1.75rem; margin-left: .2rem; }
+.trailer__hint {
+  position: absolute; left: 0; right: 0; bottom: 1.25rem;
+  font-size: .75rem; text-transform: uppercase; letter-spacing: .1em;
+  color: hsl(var(--primary-foreground) / .85);
+}
+.trailer iframe { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; }
+.trailer__note {
+  margin-top: 1.25rem;
+  text-align: center;
+  font-size: .75rem;
+  color: hsl(var(--primary-foreground) / .5);
+}
+
 .disciplines { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
 @media (min-width: 720px) { .disciplines { grid-template-columns: repeat(3, 1fr); gap: 1.25rem; } }
 @media (min-width: 1024px) { .disciplines { gap: 2rem; } }
@@ -1052,7 +1098,7 @@ ul { margin: 0; padding: 0; list-style: none; }
       </a>
 
       <nav class="site-header__nav" aria-label="Primary">
-        <a class="nav-link" href="#events" data-scroll>Events</a><a class="nav-link" href="#disciplines" data-scroll>What We Teach</a><a class="nav-link" href="#programmes" data-scroll>Programmes</a><a class="nav-link" href="#journey" data-scroll>What to Expect</a><a class="nav-link" href="#gallery" data-scroll>Gallery</a><a class="nav-link" href="#about" data-scroll>About</a>
+        <a class="nav-link" href="#trailer" data-scroll>Trailer</a><a class="nav-link" href="#events" data-scroll>Events</a><a class="nav-link" href="#disciplines" data-scroll>What We Teach</a><a class="nav-link" href="#programmes" data-scroll>Programmes</a><a class="nav-link" href="#journey" data-scroll>What to Expect</a><a class="nav-link" href="#gallery" data-scroll>Gallery</a><a class="nav-link" href="#about" data-scroll>About</a>
         <a href="https://www.instagram.com/ummattically/" target="_blank" rel="noopener noreferrer" class="site-header__social"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true" focusable="false"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg><span class="screen-reader-text">Instagram</span></a>
         <a href="https://m.youtube.com/@ummatically" target="_blank" rel="noopener noreferrer" class="site-header__social"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true" focusable="false"><path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17"/><path d="m10 15 5-3-5-3z"/></svg><span class="screen-reader-text">YouTube</span></a>
         <a class="btn btn--accent btn--sm" href="#events" data-scroll>Book Now</a>
@@ -1093,6 +1139,25 @@ ul { margin: 0; padding: 0; list-style: none; }
           <a class="btn btn--ghost" href="#programmes" data-scroll>Explore Programmes</a>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- Trailer -->
+  <section id="trailer" class="section section--primary trailer-section">
+    <div class="container">
+      <div class="reveal" style="text-align:center;margin-bottom:2.5rem">
+        <p class="eyebrow">Watch</p>
+        <h2 class="section-title">See a Day With Us</h2>
+      </div>
+      <div class="trailer reveal">
+        <button class="trailer__poster" type="button" data-trailer="3WHgQ-5V8Ig"
+                aria-label="Play the Ummatically trailer on YouTube">
+          <img src="images/trailer-poster.jpg" alt="" loading="lazy" decoding="async" width="1280" height="720">
+          <span class="trailer__play"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11.5-6.86a1 1 0 0 0 0-1.72L9.5 4.28A1 1 0 0 0 8 5.14Z"/></svg></span>
+          <span class="trailer__hint">Watch the trailer</span>
+        </button>
+      </div>
+      <p class="trailer__note reveal">The video plays from YouTube. Nothing loads from them until you press play.</p>
     </div>
   </section>
 
@@ -1821,6 +1886,25 @@ ul { margin: 0; padding: 0; list-style: none; }
 
 		autoplay();
 	}
+
+	/* ------------------------------------------------------------------
+	 * Trailer. Nothing is requested from YouTube until it is played, so the
+	 * page sets no third-party cookies for anyone who does not watch.
+	 * ---------------------------------------------------------------- */
+	document.querySelectorAll('[data-trailer]').forEach(function (poster) {
+		poster.addEventListener('click', function () {
+			var frame = document.createElement('iframe');
+
+			frame.src = 'https://www.youtube-nocookie.com/embed/' + poster.dataset.trailer
+				+ '?autoplay=1&rel=0&modestbranding=1';
+			frame.title = 'Ummatically trailer';
+			frame.allow = 'accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture';
+			frame.allowFullscreen = true;
+
+			poster.replaceWith(frame);
+			frame.focus();
+		});
+	});
 
 	/* ------------------------------------------------------------------
 	 * Gallery lightbox.
