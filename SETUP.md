@@ -345,6 +345,13 @@ confirmation, and the attendee's email, carry a **Pay now** button straight to
 that Stripe payment link. Only `buy.stripe.com` links are accepted — anything
 else is dropped rather than emailed out.
 
+**Knowing who has paid.** The booking reference is appended to the payment link,
+so Stripe records it against the payment and the 15-minute sweep matches the two
+up: the booking flips from **Enquiry** to **Paid**, the Stripe session and
+payment ids land in its row, and the attendee gets their confirmation. Run
+`reconcilePaymentLinks` by hand to check immediately. Its log also names any
+payment that arrived with no matching booking, so nothing goes quietly missing.
+
 > A payment link is priced per place. Somebody booking more than one is told to
 > set the quantity on the Stripe page, and given the total to expect. If you
 > would rather that were automatic, turn on **adjustable quantity** on the link

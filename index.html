@@ -2308,6 +2308,12 @@ window.UMMATICALLY_BOOKING = {
 		});
 	};
 
+	var payUrl = function (link, ref, email) {
+		return link
+			+ '?client_reference_id=' + encodeURIComponent(String(ref || '').replace(/[^A-Za-z0-9_-]/g, ''))
+			+ (email ? '&prefilled_email=' + encodeURIComponent(email) : '');
+	};
+
 	var showResult = function (icon, title, message, ref, payLink) {
 		var refOut = dialog.querySelector('[data-booking-result-ref]');
 		var payWrap = dialog.querySelector('[data-booking-pay]');
@@ -2317,12 +2323,15 @@ window.UMMATICALLY_BOOKING = {
 		var qty = parseInt(places.value, 10) || 1;
 
 		if (payLink) {
-			payAnchor.href = payLink;
+			var email = (form.querySelector('[name="email"]') || {}).value || '';
+
+			payAnchor.href = payUrl(payLink, ref, email);
 			payAnchor.textContent = 'Pay now';
-			payNote.textContent = qty > 1
+			payNote.textContent = (qty > 1
 				? 'Opens our secure Stripe page. You are booking ' + qty + ' places, so set the quantity to '
-					+ qty + ' there — the total should come to ' + money(unitPrice * qty) + '.'
-				: 'Opens our secure Stripe payment page. You can also pay from the email we have just sent you.';
+					+ qty + ' there — the total should come to ' + money(unitPrice * qty) + '. '
+				: 'Opens our secure Stripe payment page. You can also pay from the email we have just sent you. ')
+				+ 'Your reference travels with the payment, so we will see it against your booking.';
 		}
 
 		payWrap.hidden = !payLink;

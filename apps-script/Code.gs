@@ -48,7 +48,7 @@ var EVENTS_SHEET = 'Events';
  * from outside which version is actually deployed — pasting the code is not
  * enough on its own, it has to be saved, and the web app redeployed.
  */
-var CODE_VERSION = '2026-09-13.12';
+var CODE_VERSION = '2026-09-13.13';
 
 /**
  * Where a booking waits while its payment is in progress. Nothing reaches an
@@ -792,12 +792,18 @@ function markPaid_(session) {
     return { ref: session.client_reference_id || '' };
   }
 
+  return applyPayment_(found, session);
+}
+
+/** Writes a payment onto a booking row, wherever that row lives. */
+function applyPayment_(found, session) {
   var sheet = found.sheet;
   var row = found.row;
   var statusCol = columnIndex_('Status');
   var alreadyPaid = String(sheet.getRange(row, statusCol).getValue()) === 'Paid';
 
   sheet.getRange(row, statusCol).setValue('Paid');
+  sheet.getRange(row, columnIndex_('Stripe Session')).setValue(session.id || '');
   sheet.getRange(row, columnIndex_('Stripe Payment')).setValue(session.payment_intent || '');
   sheet.getRange(row, columnIndex_('Paid At')).setValue(new Date());
 
@@ -821,6 +827,39 @@ function markPaid_(session) {
   rebuildDirectory();
 
   return { ref: ref };
+}
+
+/**
+ * Locates a booking by its reference. Payment links carry the reference back as
+ * the session's client_reference_id, which is how a link payment is tied to the
+ * booking that prompted it.
+ */
+function findByReference_(reference) {
+  if (!reference) {
+    return null;
+  }
+
+  var spreadsheet = book_();
+  var refCol = columnIndex_('Reference');
+  var names = [PENDING_SHEET].concat(eventTabs_());
+
+  for (var i = 0; i < names.length; i++) {
+    var sheet = spreadsheet.getSheetByName(names[i]);
+
+    if (!sheet || sheet.getLastRow() < 2) {
+      continue;
+    }
+
+    var refs = sheet.getRange(2, refCol, sheet.getLastRow() - 1, 1).getValues();
+
+    for (var j = 0; j < refs.length; j++) {
+      if (String(refs[j][0]).trim() === String(reference).trim()) {
+        return { sheet: sheet, row: j + 2 };
+      }
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -898,6 +937,49 @@ function rowToBooking_(row) {
 }
 
 /**
+ * Matches payments made through a payment link back to their bookings.
+ *
+ * The booking reference is appended to the link as client_reference_id, so
+ * Stripe hands it back on the resulting checkout session and the two can be
+ * tied together exactly rather than guessed at from names and amounts.
+ */
+function reconcilePaymentLinks() {
+  if (!stripeKey_()) {
+    return 'Stripe is not configured.';
+  }
+
+  var sessions = stripe_('checkout/sessions?limit=100');
+  var matched = 0;
+  var unmatched = [];
+
+  (sessions.data || []).forEach(function (session) {
+    if (session.payment_status !== 'paid' || !session.client_reference_id) {
+      return;
+    }
+
+    var found = findByReference_(session.client_reference_id);
+
+    if (!found) {
+      unmatched.push(session.client_reference_id);
+      return;
+    }
+
+    if (String(found.sheet.getRange(found.row, columnIndex_('Status')).getValue()) === 'Paid') {
+      return;
+    }
+
+    applyPayment_(found, session);
+    matched++;
+  });
+
+  var report = 'Payment links: ' + matched + ' booking(s) marked paid.'
+    + (unmatched.length ? ' Paid but no matching booking: ' + unmatched.join(', ') : '');
+
+  console.log(report);
+  return report;
+}
+
+/**
  * Catches anyone who paid but closed the tab before returning to the site, and
  * expires stale holds. Runs on a timer — see installTriggers().
  */
@@ -905,6 +987,8 @@ function reconcilePendingBookings() {
   if (!stripeKey_()) {
     return;
   }
+
+  reconcilePaymentLinks();
 
   var spreadsheet = book_();
   var statusCol = columnIndex_('Status');
@@ -1029,7 +1113,8 @@ function notifyOwner_(data, ref, state) {
     ['Heard from', data.heardFrom],
     ['Notes', data.notes],
     ['Photo consent', data.photoConsent ? 'Yes' : 'No'],
-    ['Waiver accepted', data.waiver ? 'Yes' : 'No']
+    ['Waiver accepted', data.waiver ? 'Yes' : 'No'],
+    ['Payment', data.payLink ? 'Payment link sent — watch for ' + ref : '']
   ]);
 
   MailApp.sendEmail({
@@ -1040,13 +1125,24 @@ function notifyOwner_(data, ref, state) {
   });
 }
 
-function payButton_(data) {
+/** The payment link with the booking's reference and email attached. */
+function payUrl_(link, ref, email) {
+  if (!link) {
+    return '';
+  }
+
+  return link
+    + '?client_reference_id=' + encodeURIComponent(String(ref || '').replace(/[^A-Za-z0-9_-]/g, ''))
+    + (email ? '&prefilled_email=' + encodeURIComponent(email) : '');
+}
+
+function payButton_(data, ref) {
   if (!data.payLink) {
     return '';
   }
 
   return '<table style="margin:20px 0"><tr><td style="background:#0022b3;padding:14px 28px">'
-    + '<a href="' + escape_(data.payLink) + '" style="color:#ffffff;font-weight:600;font-size:15px;'
+    + '<a href="' + escape_(payUrl_(data.payLink, ref, data.email)) + '" style="color:#ffffff;font-weight:600;font-size:15px;'
     + 'text-decoration:none;letter-spacing:.02em">Pay now &rarr;</a>'
     + '</td></tr></table>'
     + '<p style="margin:0 0 20px;color:#5b6472;font-size:13px">Your place is held once payment is received.'
@@ -1097,7 +1193,7 @@ function emailAttendee_(data, ref, state) {
     replyTo: replyAddress_(),
     name: org,
     subject: copy.subject,
-    htmlBody: shell_(copy.heading, copy.intro, summary, copy.footer, 'paid' === state ? '' : payButton_(data)),
+    htmlBody: shell_(copy.heading, copy.intro, summary, copy.footer, 'paid' === state ? '' : payButton_(data, ref)),
     attachments: waiverAttachment_()
   });
 }
