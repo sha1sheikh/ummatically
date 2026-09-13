@@ -48,7 +48,7 @@ var EVENTS_SHEET = 'Events';
  * from outside which version is actually deployed — pasting the code is not
  * enough on its own, it has to be saved, and the web app redeployed.
  */
-var CODE_VERSION = '2026-09-11.10';
+var CODE_VERSION = '2026-09-13.11';
 
 /**
  * Where a booking waits while its payment is in progress. Nothing reaches an
@@ -1506,7 +1506,7 @@ function buildReadMe_(spreadsheet) {
     'Women of Ihsan – Taster Day', 'womens-taster-day-jul-2026', 'Jul 19, 2026 · 1 Day',
     'B60, Worcestershire', 'Aisha Rahman', 'aisha@example.com', '07700 900123', '27', 2,
     75, 150, 'GBP', 'Mariam Rahman', '07700 900456', 'Nut allergy', 'None', 'Instagram',
-    '', 'Yes', 'Yes', 'cs_test_a1b2c3', 'pi_3Nx4y5', '2026-06-02 14:33'
+    '', 'Yes', 'Yes', 'cs_test_a1b2c3', 'pi_3Nx4y5', '2026-06-02 14:33', 'Yes'
   ]]).setFontFamily('Arial').setFontSize(9);
 }
 
