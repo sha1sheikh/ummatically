@@ -345,6 +345,12 @@ confirmation, and the attendee's email, carry a **Pay now** button straight to
 that Stripe payment link. Only `buy.stripe.com` links are accepted — anything
 else is dropped rather than emailed out.
 
+**A place is held, not given, until payment arrives.** A booking waits on the
+**Pending payment** tab, counting against that date's capacity so nobody else
+can take it, and moves onto the event's own tab as **Paid** once the money
+lands. You are emailed then, not before. A hold that is not paid within two days
+is marked Expired and its place returns to the pool.
+
 **Knowing who has paid.** The booking reference is appended to the payment link,
 so Stripe records it against the payment and the 15-minute sweep matches the two
 up: the booking flips from **Enquiry** to **Paid**, the Stripe session and

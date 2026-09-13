@@ -1140,7 +1140,7 @@ ul { margin: 0; padding: 0; list-style: none; }
                 <li><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Sisterhood</span></li>
               </ul>
               <p>Whether you’re completely new or already experienced, this is a great opportunity to learn new skills, build confidence, challenge yourself and enjoy a unique outdoor experience alongside other Muslims.</p>
-              <p class="event-about__note"><strong>£75 per person.</strong> Once your form is submitted you can pay straight away, and we will follow up with everything else you need to know. Questions first? Call or message us on <a href="tel:+447922381864">07922 381864</a>.<br><br>Jazakum Allah khayr.</p>
+              <p class="event-about__note"><strong>£75 per person.</strong> Once your form is submitted your place is held, and confirmed as soon as you pay. We will follow up with everything else you need to know. Questions first? Call or message us on <a href="tel:+447922381864">07922 381864</a>.<br><br>Jazakum Allah khayr.</p>
             </div>
             <div class="event-card__facts">
               <div><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>10 dates · Sun 20 Sep – Sun 27 Dec 2026</span></div>
@@ -2029,7 +2029,7 @@ window.UMMATICALLY_BOOKING = {
 
 		if (totalNote) {
 			totalNote.textContent = offline
-				? 'You will be able to pay as soon as you have booked, or from the email we send you.'
+				? 'Your place is held as soon as you book, and confirmed once you pay on the next step.'
 				: 'You\'ll be taken to our secure payment page to complete your booking.';
 		}
 	};
@@ -2331,7 +2331,7 @@ window.UMMATICALLY_BOOKING = {
 				? 'Opens our secure Stripe page. You are booking ' + qty + ' places, so set the quantity to '
 					+ qty + ' there — the total should come to ' + money(unitPrice * qty) + '. '
 				: 'Opens our secure Stripe payment page. You can also pay from the email we have just sent you. ')
-				+ 'Your reference travels with the payment, so we will see it against your booking.';
+				+ 'Your reference travels with the payment, so your place is confirmed automatically. Places held without payment are released after two days.';
 		}
 
 		payWrap.hidden = !payLink;
@@ -2403,9 +2403,9 @@ window.UMMATICALLY_BOOKING = {
 			setBusy(false);
 			showResult(
 				ICON_TICK,
-				'Request received',
+				payLink ? 'Your place is held' : 'Request received',
 				payLink
-					? 'Jazakum Allahu khayran. Your place is held once payment is received — you can pay now using the button below, and we will be in touch with everything else you need to know.'
+					? 'Jazakum Allahu khayran. We are holding your place — it is confirmed as soon as payment reaches us. Pay now using the button below, or from the email we have just sent you.'
 					: 'Jazakum Allahu khayran. We have your details and will be in touch shortly to confirm your place and arrange payment.',
 				data.ref,
 				payLink

@@ -48,7 +48,7 @@ var EVENTS_SHEET = 'Events';
  * from outside which version is actually deployed — pasting the code is not
  * enough on its own, it has to be saved, and the web app redeployed.
  */
-var CODE_VERSION = '2026-09-13.13';
+var CODE_VERSION = '2026-09-13.14';
 
 /**
  * Where a booking waits while its payment is in progress. Nothing reaches an
@@ -453,8 +453,10 @@ function createBooking_(body) {
       session = createCheckoutSession_(clean, ref);
     }
 
-    // With no payment to wait for there is nothing to hold back.
-    var holding = session && bookingMode_() === 'paid-only';
+    // A place is held, not given, until the money arrives — whether that is a
+    // checkout session we opened or a payment link they were sent.
+    var awaitingPayment = session || clean.payLink;
+    var holding = awaitingPayment && bookingMode_() === 'paid-only';
     var target = holding
       ? pendingSheet_()
       : eventSheet_(clean.eventId, clean.eventTitle);
@@ -463,7 +465,7 @@ function createBooking_(body) {
 
     if (holding) {
       // The organisers hear about this once the money lands, in markPaid_.
-      emailAttendee_(clean, ref, 'pending');
+      emailAttendee_(clean, ref, clean.payLink ? 'holding' : 'pending');
     } else {
       notifyOwner_(clean, ref, session ? 'Awaiting payment' : (clean.offline ? 'TO INVOICE' : 'Enquiry'));
       emailAttendee_(clean, ref, session ? 'pending' : 'recorded');
@@ -568,7 +570,7 @@ function appendBooking_(sheet, data, ref, session) {
   sheet.appendRow([
     new Date(),
     ref,
-    session ? 'Awaiting payment' : 'Enquiry',
+    (session || data.payLink) ? 'Awaiting payment' : 'Enquiry',
     data.eventTitle,
     data.eventId,
     data.eventDate,
@@ -1008,7 +1010,17 @@ function reconcilePendingBookings() {
     for (var row = sheet.getLastRow(); row >= 2; row--) {
       var values = sheet.getRange(row, 1, 1, COLUMNS.length).getValues()[0];
 
-      if (String(values[statusCol - 1]) !== 'Awaiting payment' || !values[sessionCol - 1]) {
+      if (String(values[statusCol - 1]) !== 'Awaiting payment') {
+        continue;
+      }
+
+      // A payment-link booking has no session of its own to ask about. It is
+      // matched by reference in reconcilePaymentLinks; all that is left here is
+      // to release the place if the payment never came.
+      if (!values[sessionCol - 1]) {
+        if (new Date(values[stampCol - 1]).getTime() < cutoff) {
+          sheet.getRange(row, statusCol).setValue('Expired');
+        }
         continue;
       }
 
@@ -1170,6 +1182,12 @@ function emailAttendee_(data, ref, state) {
       heading: 'You are booked in',
       intro: 'As-salamu alaykum ' + escape_(data.name) + ',<br><br>Your payment has gone through and your place is confirmed. We look forward to having you with us, in sha Allah.',
       footer: 'Your copy of the waiver is attached. Keep this email for your records, and reply to it if anything changes or if you need to cancel.'
+    },
+    holding: {
+      subject: 'Pay to confirm your place — ' + data.eventTitle,
+      heading: 'Your place is held',
+      intro: 'As-salamu alaykum ' + escape_(data.name) + ',<br><br>We have your details and are holding your place. It is confirmed as soon as payment reaches us — you can pay using the button below.',
+      footer: 'Places held without payment are released after two days. Reply to this email if you would rather arrange payment another way.'
     },
     pending: {
       subject: 'Complete your booking — ' + data.eventTitle,
