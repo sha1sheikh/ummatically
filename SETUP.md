@@ -120,7 +120,7 @@ can't be guessed:
 
 | Property | Value |
 |---|---|
-| `SITE_URL` | your live site, e.g. `https://ummatically.com/` |
+| `SITE_URL` | your live site — `https://ummatically.co.uk/` (note `.co.uk`, not `.com`) |
 
 > **`SITE_URL` must be the public address people actually visit.** Stripe sends
 > them back there after paying. A `file:///` path or `localhost` won't work.

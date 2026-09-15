@@ -13,6 +13,7 @@ takes event bookings and payments.
 | `apps-script/Code.gs` | The backend: records bookings, emails you and the attendee, takes payment through Stripe |
 | `apps-script/appsscript.json` | Apps Script project manifest (permissions and deployment settings) |
 | `SETUP.md` | **Start here.** Step-by-step guide to connecting the sheet, the emails and Stripe |
+| `HANDOVER.md` | Passing the site and all six accounts to the client, in order |
 
 The live spreadsheet is
 **[Ummatically Bookings](https://docs.google.com/spreadsheets/d/1fYhsyCe3vG76-2qtCUP9ZS_TNwexZDnhGesC2ggh93Y/edit)**
