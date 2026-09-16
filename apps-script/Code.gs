@@ -48,7 +48,7 @@ var EVENTS_SHEET = 'Events';
  * from outside which version is actually deployed — pasting the code is not
  * enough on its own, it has to be saved, and the web app redeployed.
  */
-var CODE_VERSION = '2026-09-13.14';
+var CODE_VERSION = '2026-09-16.15';
 
 /**
  * Where a booking waits while its payment is in progress. Nothing reaches an
@@ -1544,9 +1544,11 @@ function columnLetter_(index) {
 function buildSummary_(spreadsheet) {
   var sheet = tab_(spreadsheet, 'Summary');
 
-  if (sheet.getLastRow() > 0) {
-    return;
-  }
+  // Always rebuild. Every cell here is a label or a formula reading the Events
+  // tab, so there is nothing of yours to lose — and deleting a row from Events
+  // turns the "By event" formulas into #REF!, which only a rewrite can undo.
+  // Bailing out when the tab already had content left those errors in place.
+  sheet.clear();
 
   var total = function (column) {
     var letter = columnLetter_(eventColumnIndex_(column));
@@ -1558,7 +1560,8 @@ function buildSummary_(spreadsheet) {
 
   sheet.getRange('A1').setValue('Bookings at a glance')
     .setFontFamily('Arial').setFontSize(14).setFontWeight('bold').setFontColor(NAVY);
-  sheet.getRange('A2').setValue('Totals across every event. Each event has its own tab.')
+  sheet.getRange('A2').setValue('Totals across every event. Each event has its own tab. '
+      + 'Rebuilt by setUp — edits here are overwritten.')
     .setFontFamily('Arial').setFontSize(9).setFontStyle('italic').setFontColor(GREY);
 
   var metrics = [

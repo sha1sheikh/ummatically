@@ -460,6 +460,15 @@ and emailed; they just come in as enquiries for you to invoice by hand.
 
 ---
 
+### The Summary shows #REF! errors
+
+Deleting a row from the **Events** tab breaks the "By event" formulas that
+point at it, and Google replaces them with `#REF!`. Run `setUp` and it
+rebuilds the Summary from scratch. Nothing is lost — every cell on that tab is
+a label or a formula reading the Events tab.
+
+If you delete an event row, run `setUp` afterwards.
+
 ## If something goes wrong
 
 | What you see | What it usually is |
