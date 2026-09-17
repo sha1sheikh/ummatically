@@ -301,13 +301,27 @@ would sit on "Awaiting payment" forever. A timer fixes that.
 
 | Timer | What it does |
 |---|---|
-| Every 15 minutes | Asks Stripe about anything still pending. Paid ones move to their event tab; anything unpaid after two days is marked **Expired** and its places released |
+| Every 5 minutes | Asks Stripe about anything still pending. Paid ones move to their event tab; anything unpaid after two days is marked **Expired** and its places released |
 | Hourly | Rebuilds the **All bookings** and **People** tabs |
 | Daily, 4am | Reads the events off your website into the Events tab (see below) |
 
 You can see them under **⏰ Triggers** in the left sidebar.
 
 ---
+
+## Who gets emailed, and when
+
+Four emails per paid booking — two the moment the form is submitted, two when
+the money arrives.
+
+| When | Attendee gets | You get |
+|---|---|---|
+| They submit the form | **Pay to confirm your place** — with the payment button and the waiver attached | **[NEW — awaiting payment]** with all their details |
+| They pay | **Your place is confirmed** | **[PAID]** |
+
+The second pair is sent by the payment sweep, so it follows the payment within
+about five minutes rather than instantly. For an event with no online payment
+you get one **[TO INVOICE]** email and they get **We have your booking request**.
 
 ## Running it day to day
 
@@ -352,7 +366,7 @@ lands. You are emailed then, not before. A hold that is not paid within two days
 is marked Expired and its place returns to the pool.
 
 **Knowing who has paid.** The booking reference is appended to the payment link,
-so Stripe records it against the payment and the 15-minute sweep matches the two
+so Stripe records it against the payment and the 5-minute sweep matches the two
 up: the booking flips from **Enquiry** to **Paid**, the Stripe session and
 payment ids land in its row, and the attendee gets their confirmation. Run
 `reconcilePaymentLinks` by hand to check immediately. Its log also names any
@@ -484,7 +498,7 @@ If you delete an event row, run `setUp` afterwards.
 | Emails never arrive | Check spam first. Gmail allows ~100 script emails a day, Workspace ~1,500 — each booking emails both owners and the attendee |
 | Stripe says "No such API key" | Test key with live mode, or vice versa. Also make sure you redeployed after changing it |
 | Payments land in the wrong Stripe account | The key decides the account. `sk_test_…` from the sandbox goes to the sandbox; check which account the dashboard switcher was on when you copied it |
-| Paid on Stripe but the sheet says awaiting | The 15-minute sweep will catch it. To force it, run **`reconcilePendingBookings`** by hand |
+| Paid on Stripe but the sheet says awaiting | The 5-minute sweep will catch it. To force it, run **`reconcilePendingBookings`** by hand |
 | Changed the code, nothing changed | You must **Deploy → Manage deployments → New version** every time |
 
 **Where to look:** Apps Script's left sidebar has **Executions**, which logs every

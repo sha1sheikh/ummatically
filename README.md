@@ -28,7 +28,8 @@ Booking alerts go to `abuobaydahalyafawe@gmail.com` and
 ## Booking flow
 
 Someone clicks **Book Now** → fills the form on the page → the booking waits on
-**Pending payment** and they get a "finish up" email → Stripe Checkout takes the
+**Pending payment**, they get a "finish up" email and you get a
+**[NEW — awaiting payment]** alert → Stripe Checkout takes the
 payment → the booking moves onto its event's tab, both organisers are emailed,
 and the attendee gets their confirmation.
 

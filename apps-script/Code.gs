@@ -48,7 +48,7 @@ var EVENTS_SHEET = 'Events';
  * from outside which version is actually deployed — pasting the code is not
  * enough on its own, it has to be saved, and the web app redeployed.
  */
-var CODE_VERSION = '2026-09-16.15';
+var CODE_VERSION = '2026-09-17.16';
 
 /**
  * Where a booking waits while its payment is in progress. Nothing reaches an
@@ -464,7 +464,10 @@ function createBooking_(body) {
     appendBooking_(target, clean, ref, session);
 
     if (holding) {
-      // The organisers hear about this once the money lands, in markPaid_.
+      // Tell the organisers as soon as the form is submitted — waiting for the
+      // money to land meant a booking could sit unseen for two days before it
+      // expired. markPaid_ follows up with [PAID] when payment arrives.
+      notifyOwner_(clean, ref, 'NEW — awaiting payment');
       emailAttendee_(clean, ref, clean.payLink ? 'holding' : 'pending');
     } else {
       notifyOwner_(clean, ref, session ? 'Awaiting payment' : (clean.offline ? 'TO INVOICE' : 'Enquiry'));
@@ -1129,11 +1132,22 @@ function notifyOwner_(data, ref, state) {
     ['Payment', data.payLink ? 'Payment link sent — watch for ' + ref : '']
   ]);
 
+  // There are now two of these per booking — one when the form is submitted,
+  // one when the money lands — so say which is which at a glance.
+  var paid = state === 'PAID';
+
   MailApp.sendEmail({
     to: ownerList_(),
     replyTo: data.email,
     subject: subject,
-    htmlBody: shell_('New booking', 'Recorded in your bookings sheet.', body)
+    htmlBody: shell_(
+      paid ? 'Payment received' : 'New booking',
+      paid
+        ? 'Confirmed and moved onto the event’s own tab.'
+        : (data.payLink || data.offline
+          ? 'Not paid yet — held on the “Pending payment” tab. You will get a second email when they pay.'
+          : 'Recorded in your bookings sheet.'),
+      body)
   });
 }
 
@@ -2083,11 +2097,13 @@ function installTriggers() {
     }
   });
 
-  ScriptApp.newTrigger('reconcilePendingBookings').timeBased().everyMinutes(15).create();
+  // Five minutes, not fifteen: this sweep is what spots a payment link being
+  // paid, so it decides how long someone waits for their confirmation email.
+  ScriptApp.newTrigger('reconcilePendingBookings').timeBased().everyMinutes(5).create();
   ScriptApp.newTrigger('rebuildDirectory').timeBased().everyHours(1).create();
   ScriptApp.newTrigger('syncEventsFromSite').timeBased().everyDays(1).atHour(4).create();
 
-  console.log('Triggers installed: payment sweep every 15 minutes, directory rebuild hourly, '
+  console.log('Triggers installed: payment sweep every 5 minutes, directory rebuild hourly, '
     + 'website sync daily at 4am.');
 }
 
