@@ -349,6 +349,9 @@ ul { margin: 0; padding: 0; list-style: none; }
 .event-card:hover { box-shadow: 0 10px 30px -12px hsl(var(--primary) / .28); }
 
 .event-card__media { position: relative; aspect-ratio: 3 / 2; overflow: hidden; }
+/* Both event posters are 2:3. Give their cards that shape so the whole
+   poster is readable on the page rather than only through the lightbox. */
+.event-card__media--poster { aspect-ratio: 2 / 3; }
 .event-card__media img { width: 100%; height: 100%; object-fit: cover; transition: transform .7s var(--ease); }
 .event-card:hover .event-card__media img { transform: scale(1.05); }
 .event-card__poster {
@@ -1198,10 +1201,10 @@ ul { margin: 0; padding: 0; list-style: none; }
       </div>
       <div class="grid grid--3 grid--events">
         <article class="event-card reveal">
-          <div class="event-card__media">
+          <div class="event-card__media event-card__media--poster">
             <button type="button" class="event-card__poster" data-lightbox data-lightbox-src="images/uk-retreat-oct-2026-poster.jpg">
-              <img src="images/uk-retreat-oct-2026.jpg" alt="Train the Body, Purify the Soul — UK Retreat with Ummatically and Muslim Alpha, 10th–11th October 2026" loading="lazy" decoding="async" width="820" height="547">
-              <span class="event-card__poster-hint">View poster</span>
+              <img src="images/uk-retreat-oct-2026-poster.jpg" alt="Train the Body, Purify the Soul — UK Retreat with Ummatically and Muslim Alpha, 10th–11th October 2026" loading="lazy" decoding="async" width="820" height="1231">
+              <span class="event-card__poster-hint">Enlarge</span>
             </button>
             <div class="event-card__price">£120</div>
           </div>
@@ -1242,10 +1245,10 @@ ul { margin: 0; padding: 0; list-style: none; }
           </div>
         </article>
         <article class="event-card reveal">
-          <div class="event-card__media">
+          <div class="event-card__media event-card__media--poster">
             <button type="button" class="event-card__poster" data-lightbox data-lightbox-src="images/womens-winter-special-2026-poster.jpg">
-              <img src="images/womens-winter-special-2026.jpg" alt="Women’s Retreats Winter Special — sisterhood, archery and horsemanship, 18 October to 27 December" loading="lazy" decoding="async" width="900" height="600">
-              <span class="event-card__poster-hint">View poster</span>
+              <img src="images/womens-winter-special-2026-poster.jpg" alt="Women’s Retreats Winter Special — sisterhood, archery and horsemanship, 18 October to 27 December" loading="lazy" decoding="async" width="820" height="1230">
+              <span class="event-card__poster-hint">Enlarge</span>
             </button>
             <div class="event-card__price">£75</div>
           </div>
