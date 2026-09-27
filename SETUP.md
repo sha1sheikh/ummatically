@@ -319,6 +319,22 @@ that needs you — an event with no capacity set, or Stripe on a test key.
 It is there so that the sheet and Stripe are somewhere you *can* look, not
 somewhere you *have* to. Run `dailyDigest` by hand any time you want it early.
 
+### Swapping a test key for the live one
+
+Take the live key from Stripe (**Developers → API keys**, with the dashboard's
+test-mode toggle **off**; it starts `sk_live_`) and put it in Script Properties
+as `STRIPE_SECRET_KEY`, then **Deploy → Manage deployments → New version**.
+
+Nothing changes for the person booking. Both events are set to `offline`
+payment, so the script never opens a checkout session of its own — the swap
+only changes which Stripe account the sweep reads.
+
+Afterwards run `reconcilePaymentLinks` by hand. It sweeps the last 100 real
+payments and confirms everyone who paid while the test key was in place.
+
+Old `cs_test_…` ids left in the sheet are looked up and quietly fail against a
+live key; that is caught per row and does not stop the sweep.
+
 ### Checking which Stripe account is in use
 
 Open the `/exec` URL with `?action=ping`. It reports `"stripe":"live"`,

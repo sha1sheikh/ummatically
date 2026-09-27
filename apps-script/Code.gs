@@ -51,7 +51,7 @@ var EVENTS_SHEET = 'Events';
  * from outside which version is actually deployed — pasting the code is not
  * enough on its own, it has to be saved, and the web app redeployed.
  */
-var CODE_VERSION = '2026-09-27.18';
+var CODE_VERSION = '2026-09-27.19';
 
 /**
  * Where a booking waits while its payment is in progress. Nothing reaches an
@@ -1052,7 +1052,17 @@ function reconcilePaymentLinks() {
     return 'Stripe is not configured.';
   }
 
-  var sessions = stripe_('checkout/sessions?limit=100');
+  var sessions;
+
+  try {
+    sessions = stripe_('checkout/sessions?limit=100');
+  } catch (error) {
+    // This runs first inside reconcilePendingBookings. Letting it throw would
+    // take the expiry sweep down with it and leave no trace but a stack trace.
+    console.error('Could not read payments from Stripe: ' + error.message);
+    return 'Could not read payments from Stripe: ' + error.message;
+  }
+
   var matched = 0;
   var byEmail = 0;
   var unmatched = [];
