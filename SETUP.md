@@ -121,6 +121,7 @@ can't be guessed:
 | Property | Value |
 |---|---|
 | `SITE_URL` | your live site — `https://ummatically.co.uk/` (note `.co.uk`, not `.com`) |
+| `CONTACT_EMAIL` | optional — where attendees' replies go. Defaults to `abuobaydahalyafawe@gmail.com` |
 
 > **`SITE_URL` must be the public address people actually visit.** Stripe sends
 > them back there after paying. A `file:///` path or `localhost` won't work.
@@ -482,6 +483,20 @@ rebuilds the Summary from scratch. Nothing is lost — every cell on that tab is
 a label or a formula reading the Events tab.
 
 If you delete an event row, run `setUp` afterwards.
+
+### Someone paid but was never confirmed
+
+The payment link only carries the booking reference when it is opened from the
+confirmation screen or the "finish up" email. Paid from the poster, a forwarded
+link, or the link reopened later, and there is no reference on it.
+
+The sweep now falls back to the address the person paid with, which Stripe
+prefills from the booking, so those payments match anyway. Where it still
+cannot tell — two bookings outstanding on one address for the same amount, or
+no booking at all — it emails you **[ACTION NEEDED]** with the payment so it is
+never lost in silence. Find them in Stripe and set the booking by hand.
+
+A booking already marked **Expired** is revived if the money turns up later.
 
 ## If something goes wrong
 

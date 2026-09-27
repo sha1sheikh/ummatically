@@ -24,6 +24,9 @@
  */
 var DEFAULT_OWNERS = 'abuobaydahalyafawe@gmail.com, shawon.sheikh247@gmail.com';
 
+// Every reply from an attendee goes here, whoever else is on the alert list.
+var DEFAULT_CONTACT = 'abuobaydahalyafawe@gmail.com';
+
 /**
  * The Google Sheet this writes to. Override with a SPREADSHEET_ID script
  * property to point at a different one. The id on its own grants nobody
@@ -48,7 +51,7 @@ var EVENTS_SHEET = 'Events';
  * from outside which version is actually deployed — pasting the code is not
  * enough on its own, it has to be saved, and the web app redeployed.
  */
-var CODE_VERSION = '2026-09-17.16';
+var CODE_VERSION = '2026-09-27.17';
 
 /**
  * Where a booking waits while its payment is in progress. Nothing reaches an
@@ -111,8 +114,17 @@ function ownerList_() {
 }
 
 /** A single address for attendees to reply to. */
+/**
+ * Where a person's questions should land. Kept separate from the alert list so
+ * that adding or reordering NOTIFY_EMAIL can never quietly send the public's
+ * replies somewhere nobody is watching.
+ */
+function contactAddress_() {
+  return config_('CONTACT_EMAIL', DEFAULT_CONTACT) || owners_()[0];
+}
+
 function replyAddress_() {
-  return owners_()[0];
+  return contactAddress_();
 }
 
 /**
@@ -948,6 +960,74 @@ function rowToBooking_(row) {
  * Stripe hands it back on the resulting checkout session and the two can be
  * tied together exactly rather than guessed at from names and amounts.
  */
+/** The address Stripe recorded for whoever paid. */
+function sessionEmail_(session) {
+  return String((session.customer_details && session.customer_details.email)
+    || session.customer_email || '').trim().toLowerCase();
+}
+
+/**
+ * A booking still waiting on payment, found by the address that paid.
+ *
+ * The payment link carries the booking reference only when it is opened from
+ * the confirmation screen or the "finish up" email. Anyone who pays from the
+ * poster, a forwarded link, or the link reopened later arrives without one —
+ * so match on the address instead. Never guess: an address with more than one
+ * booking outstanding is only resolved when the amount settles it.
+ */
+function findAwaitingByEmail_(email, amountTotal) {
+  if (!email) {
+    return null;
+  }
+
+  var spreadsheet = book_();
+  var emailCol = columnIndex_('Email');
+  var statusCol = columnIndex_('Status');
+  var totalCol = columnIndex_('Total');
+  var names = [PENDING_SHEET].concat(eventTabs_());
+  var hits = [];
+
+  names.forEach(function (name) {
+    var sheet = spreadsheet.getSheetByName(name);
+
+    if (!sheet || sheet.getLastRow() < 2) {
+      return;
+    }
+
+    var values = sheet.getRange(2, 1, sheet.getLastRow() - 1, COLUMNS.length).getValues();
+
+    values.forEach(function (row, index) {
+      var status = String(row[statusCol - 1]).trim();
+
+      // Expired counts: the money arrived, the two-day hold simply ran out first.
+      if (status !== 'Awaiting payment' && status !== 'Expired') {
+        return;
+      }
+
+      if (String(row[emailCol - 1]).trim().toLowerCase() !== email) {
+        return;
+      }
+
+      hits.push({ sheet: sheet, row: index + 2, total: Number(row[totalCol - 1]) || 0 });
+    });
+  });
+
+  if (hits.length === 1) {
+    return hits[0];
+  }
+
+  if (hits.length > 1 && amountTotal) {
+    var pence = Number(amountTotal);
+    var exact = hits.filter(function (hit) { return Math.round(hit.total * 100) === pence; });
+
+    if (exact.length === 1) {
+      return exact[0];
+    }
+  }
+
+  return null;
+}
+
 function reconcilePaymentLinks() {
   if (!stripeKey_()) {
     return 'Stripe is not configured.';
@@ -955,17 +1035,29 @@ function reconcilePaymentLinks() {
 
   var sessions = stripe_('checkout/sessions?limit=100');
   var matched = 0;
+  var byEmail = 0;
   var unmatched = [];
 
   (sessions.data || []).forEach(function (session) {
-    if (session.payment_status !== 'paid' || !session.client_reference_id) {
+    if (session.payment_status !== 'paid') {
       return;
     }
 
-    var found = findByReference_(session.client_reference_id);
+    var found = session.client_reference_id
+      ? findByReference_(session.client_reference_id)
+      : null;
+    var viaEmail = false;
 
     if (!found) {
-      unmatched.push(session.client_reference_id);
+      found = findAwaitingByEmail_(sessionEmail_(session), session.amount_total);
+      viaEmail = !!found;
+    }
+
+    if (!found) {
+      // Money taken with nothing to attach it to. Say so every time — a payment
+      // that cannot be placed must never pass in silence.
+      unmatched.push((session.client_reference_id || sessionEmail_(session) || session.id)
+        + ' (' + money_((Number(session.amount_total) || 0) / 100) + ')');
       return;
     }
 
@@ -975,13 +1067,37 @@ function reconcilePaymentLinks() {
 
     applyPayment_(found, session);
     matched++;
+
+    if (viaEmail) {
+      byEmail++;
+    }
   });
 
   var report = 'Payment links: ' + matched + ' booking(s) marked paid.'
-    + (unmatched.length ? ' Paid but no matching booking: ' + unmatched.join(', ') : '');
+    + (byEmail ? ' ' + byEmail + ' matched on the payer’s email, not a reference.' : '')
+    + (unmatched.length ? ' PAID BUT UNMATCHED — chase these by hand: ' + unmatched.join(', ') : '');
 
   console.log(report);
+
+  if (unmatched.length) {
+    alertUnmatchedPayments_(unmatched);
+  }
+
   return report;
+}
+
+/** Tell the organisers about money that arrived with no booking to attach it to. */
+function alertUnmatchedPayments_(unmatched) {
+  MailApp.sendEmail({
+    to: ownerList_(),
+    replyTo: contactAddress_(),
+    subject: '[ACTION NEEDED] ' + unmatched.length + ' Stripe payment(s) with no matching booking',
+    htmlBody: shell_('Payment received, booking not found',
+      'Someone has paid but the payment could not be matched to a booking, so no place has '
+      + 'been confirmed and no confirmation email has gone out. Find them in Stripe and sort '
+      + 'the booking by hand.',
+      rows_(unmatched.map(function (item, index) { return ['Payment ' + (index + 1), item]; })))
+  });
 }
 
 /**
