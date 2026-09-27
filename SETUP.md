@@ -310,6 +310,25 @@ You can see them under **⏰ Triggers** in the left sidebar.
 
 ---
 
+## The morning digest
+
+At 7am you get one email: what came in overnight, what has been paid, what is
+still owed, and how many places are left on each event. It also flags anything
+that needs you — an event with no capacity set, or Stripe on a test key.
+
+It is there so that the sheet and Stripe are somewhere you *can* look, not
+somewhere you *have* to. Run `dailyDigest` by hand any time you want it early.
+
+### Checking which Stripe account is in use
+
+Open the `/exec` URL with `?action=ping`. It reports `"stripe":"live"`,
+`"test"` or `false`.
+
+> **A test key and a live payment link are different Stripe accounts.** On a
+> test key the sweep cannot see a single real payment, so every booking sits
+> unconfirmed no matter what else is right. The digest says so in its subject
+> line if this is ever the case.
+
 ## Who gets emailed, and when
 
 Four emails per paid booking — two the moment the form is submitted, two when

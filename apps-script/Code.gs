@@ -51,7 +51,7 @@ var EVENTS_SHEET = 'Events';
  * from outside which version is actually deployed — pasting the code is not
  * enough on its own, it has to be saved, and the web app redeployed.
  */
-var CODE_VERSION = '2026-09-27.17';
+var CODE_VERSION = '2026-09-27.18';
 
 /**
  * Where a booking waits while its payment is in progress. Nothing reaches an
@@ -158,6 +158,25 @@ function stripeKey_() {
   return config_('STRIPE_SECRET_KEY', '');
 }
 
+/**
+ * "live", "test", or "" — read from the key's own prefix, never the key itself.
+ *
+ * This matters more than it looks. A test key and a live payment link belong to
+ * different Stripe accounts, so a sweep run on a test key cannot see a single
+ * real payment, and every booking waits for a confirmation that can never come.
+ */
+function stripeMode_() {
+  var key = stripeKey_();
+
+  if (!key) {
+    return '';
+  }
+
+  return key.indexOf('sk_live_') === 0 ? 'live'
+    : key.indexOf('sk_test_') === 0 ? 'test'
+    : 'unknown';
+}
+
 function siteUrl_() {
   var url = requiredConfig_('SITE_URL');
   return url.indexOf('?') === -1 ? url : url.split('?')[0];
@@ -177,7 +196,7 @@ function doGet(e) {
     ok: true,
     service: orgName_() + ' bookings',
     version: CODE_VERSION,
-    stripe: !!stripeKey_(),
+    stripe: stripeMode_() || false,
     sheetBuiltBy: config_('BUILT_BY_VERSION', 'setUp has not been run on this version')
   });
 }
@@ -1084,6 +1103,102 @@ function reconcilePaymentLinks() {
   }
 
   return report;
+}
+
+/**
+ * One email each morning so nobody has to go looking. Says what came in, what
+ * is still owed, and anything that needs a human — including a test Stripe key,
+ * which silently stops every real payment from ever being matched.
+ */
+function dailyDigest() {
+  var spreadsheet = book_();
+  var events = eventRows_();
+  var since = Date.now() - 1000 * 60 * 60 * 24;
+  var stampCol = columnIndex_('Timestamp');
+  var statusCol = columnIndex_('Status');
+  var nameCol = columnIndex_('Name');
+  var totalCol = columnIndex_('Total');
+  var refCol = columnIndex_('Reference');
+
+  var newBookings = [];
+  var newlyPaid = [];
+  var waiting = [];
+  var owed = 0;
+
+  [PENDING_SHEET].concat(eventTabs_()).forEach(function (name) {
+    var sheet = spreadsheet.getSheetByName(name);
+
+    if (!sheet || sheet.getLastRow() < 2) {
+      return;
+    }
+
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, COLUMNS.length).getValues().forEach(function (row) {
+      var status = String(row[statusCol - 1]).trim();
+      var stamp = row[stampCol - 1] instanceof Date ? row[stampCol - 1].getTime() : 0;
+      var who = row[nameCol - 1] + ' \u2014 ' + money_(row[totalCol - 1]) + ' (' + row[refCol - 1] + ')';
+
+      if (stamp >= since) {
+        newBookings.push(who);
+      }
+
+      if (status === 'Paid') {
+        var paidAt = row[columnIndex_('Paid At') - 1];
+
+        if (paidAt instanceof Date && paidAt.getTime() >= since) {
+          newlyPaid.push(who);
+        }
+
+        return;
+      }
+
+      if (status === 'Awaiting payment') {
+        waiting.push(who + (stamp ? ' \u2014 booked ' + Math.floor((Date.now() - stamp) / 864e5) + 'd ago' : ''));
+        owed += Number(row[totalCol - 1]) || 0;
+      }
+    });
+  });
+
+  var places = events.map(function (event) {
+    var remaining = spotsRemaining_(event.id);
+    return [event.name, remaining === null ? 'uncapped' : remaining + ' left'];
+  });
+
+  var warnings = [];
+
+  if (stripeMode_() === 'test') {
+    warnings.push('Stripe is on a TEST key. Real payments cannot be seen or matched \u2014 '
+      + 'put the live key in Script Properties.');
+  }
+
+  if (!stripeMode_()) {
+    warnings.push('Stripe is not configured, so nothing can be matched automatically.');
+  }
+
+  events.forEach(function (event) {
+    if (event.capacity === '' || event.capacity === null || event.capacity === undefined) {
+      warnings.push('No capacity set on "' + event.name + '" \u2014 it cannot sell out.');
+    }
+  });
+
+  var body = rows_([
+    ['New bookings (24h)', newBookings.length ? newBookings.join('<br>') : 'none'],
+    ['Paid (24h)', newlyPaid.length ? newlyPaid.join('<br>') : 'none'],
+    ['Still awaiting payment', waiting.length ? waiting.join('<br>') : 'none'],
+    ['Outstanding', money_(owed)],
+    ['Needs you', warnings.length ? warnings.join('<br>') : 'nothing']
+  ].concat(places));
+
+  MailApp.sendEmail({
+    to: ownerList_(),
+    replyTo: contactAddress_(),
+    subject: (warnings.length ? '[CHECK] ' : '') + 'Ummatically \u2014 bookings so far',
+    htmlBody: shell_('Where bookings stand',
+      'Everything in one place, so there is no need to go through Stripe or the sheet.',
+      body,
+      'Full sheet: ' + spreadsheet.getUrl())
+  });
+
+  return newBookings.length + ' new, ' + newlyPaid.length + ' paid, ' + waiting.length + ' awaiting.';
 }
 
 /** Tell the organisers about money that arrived with no booking to attach it to. */
@@ -2205,7 +2320,7 @@ function eventRowFor_(eventId) {
  * into the sheet once a day. Run once.
  */
 function installTriggers() {
-  var handlers = ['reconcilePendingBookings', 'rebuildDirectory', 'syncEventsFromSite'];
+  var handlers = ['reconcilePendingBookings', 'rebuildDirectory', 'syncEventsFromSite', 'dailyDigest'];
 
   ScriptApp.getProjectTriggers().forEach(function (trigger) {
     if (handlers.indexOf(trigger.getHandlerFunction()) !== -1) {
@@ -2218,9 +2333,10 @@ function installTriggers() {
   ScriptApp.newTrigger('reconcilePendingBookings').timeBased().everyMinutes(5).create();
   ScriptApp.newTrigger('rebuildDirectory').timeBased().everyHours(1).create();
   ScriptApp.newTrigger('syncEventsFromSite').timeBased().everyDays(1).atHour(4).create();
+  ScriptApp.newTrigger('dailyDigest').timeBased().everyDays(1).atHour(7).create();
 
   console.log('Triggers installed: payment sweep every 5 minutes, directory rebuild hourly, '
-    + 'website sync daily at 4am.');
+    + 'website sync daily at 4am, digest emailed daily at 7am.');
 }
 
 /** Sends a test booking through the whole flow without touching Stripe. */
