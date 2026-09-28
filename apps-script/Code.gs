@@ -51,7 +51,7 @@ var EVENTS_SHEET = 'Events';
  * from outside which version is actually deployed — pasting the code is not
  * enough on its own, it has to be saved, and the web app redeployed.
  */
-var CODE_VERSION = '2026-09-28.20';
+var CODE_VERSION = '2026-09-28.21';
 
 /**
  * Where a booking waits while its payment is in progress. Nothing reaches an
@@ -931,11 +931,50 @@ function sendOwedConfirmations() {
 
   setOwedConfirmations_(stillOwed);
 
+  // Name whoever is still waiting. "4 still waiting" is no use on its own when
+  // you want to write to them yourself rather than wait for the quota.
   var report = sent + ' confirmation(s) sent late'
-    + (stillOwed.length ? ', ' + stillOwed.length + ' still waiting on the email quota.' : '.');
+    + (stillOwed.length
+      ? ', ' + stillOwed.length + ' still waiting on the email quota: '
+        + stillOwed.map(describeBooking_).join('; ')
+      : '.');
 
   console.log(report);
   return report;
+}
+
+/** "UMM-XXXX — Name <email>, £75, Event" for a reference, for logs and lists. */
+function describeBooking_(ref) {
+  var found = findByReference_(ref);
+
+  if (!found) {
+    return ref + ' (booking not found)';
+  }
+
+  var row = found.sheet.getRange(found.row, 1, 1, COLUMNS.length).getValues()[0];
+
+  return ref + ' — ' + row[columnIndex_('Name') - 1]
+    + ' <' + row[columnIndex_('Email') - 1] + '>, '
+    + money_(row[columnIndex_('Total') - 1]) + ', '
+    + row[columnIndex_('Event') - 1];
+}
+
+/**
+ * Who is owed a confirmation, without sending anything. Run this when you want
+ * to write to people yourself rather than wait for the quota to reset.
+ */
+function listOwedConfirmations() {
+  var owed = owedConfirmations_();
+
+  if (!owed.length) {
+    console.log('Nobody is owed a confirmation.');
+    return 'Nobody is owed a confirmation.';
+  }
+
+  var lines = owed.map(describeBooking_);
+
+  console.log(owed.length + ' owed a confirmation:\n  ' + lines.join('\n  '));
+  return lines;
 }
 
 function applyPayment_(found, session) {
@@ -1318,6 +1357,14 @@ function dailyDigest() {
     ['Needs you', warnings.length ? warnings.join('<br>') : 'nothing']
   ].concat(places));
 
+  // The digest goes out an hour before the quota resets, so on a heavy day it
+  // can be the send that has nothing left. Losing it must not raise an error,
+  // and must never cost an attendee their place in the queue.
+  if (!canEmail_(owners_().length)) {
+    console.warn('Email quota spent; the digest is skipped today.');
+    return 'Digest skipped: no email quota left.';
+  }
+
   MailApp.sendEmail({
     to: ownerList_(),
     replyTo: contactAddress_(),
@@ -1333,6 +1380,11 @@ function dailyDigest() {
 
 /** Tell the organisers about money that arrived with no booking to attach it to. */
 function alertUnmatchedPayments_(unmatched) {
+  if (!canEmail_(owners_().length)) {
+    console.warn('Email quota spent; could not report ' + unmatched.length + ' unmatched payment(s).');
+    return;
+  }
+
   MailApp.sendEmail({
     to: ownerList_(),
     replyTo: contactAddress_(),

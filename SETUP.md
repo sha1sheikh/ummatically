@@ -321,7 +321,13 @@ confirmation that cannot be sent is queued. Every sweep starts by clearing
 that queue, so the backlog goes out by itself once the cap resets at midnight
 Pacific. The digest lists anyone still waiting.
 
-To send them sooner, run `sendOwedConfirmations` by hand after the reset.
+Run `listOwedConfirmations` to see exactly who is waiting — name, address,
+amount and event — without sending anything, so you can write to them yourself
+instead. `sendOwedConfirmations` sends whatever the quota allows and names the
+rest.
+
+The digest and the unmatched-payment alert stand aside when the quota is low,
+so an email to you never costs an attendee their confirmation.
 
 ## The morning digest
 
