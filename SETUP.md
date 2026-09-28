@@ -310,6 +310,19 @@ You can see them under **⏰ Triggers** in the left sidebar.
 
 ---
 
+## "Service invoked too many times for one day: email"
+
+Gmail caps how many recipients a script may email each day — 100 on a normal
+account. A booking's confirmation costs three of them (the attendee, plus the
+two owners), so a large catch-up sweep can reach the cap.
+
+Nothing is lost when it does. The payment is recorded first, and any
+confirmation that cannot be sent is queued. Every sweep starts by clearing
+that queue, so the backlog goes out by itself once the cap resets at midnight
+Pacific. The digest lists anyone still waiting.
+
+To send them sooner, run `sendOwedConfirmations` by hand after the reset.
+
 ## The morning digest
 
 At 7am you get one email: what came in overnight, what has been paid, what is

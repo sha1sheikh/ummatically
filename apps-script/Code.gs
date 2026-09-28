@@ -51,7 +51,7 @@ var EVENTS_SHEET = 'Events';
  * from outside which version is actually deployed — pasting the code is not
  * enough on its own, it has to be saved, and the web app redeployed.
  */
-var CODE_VERSION = '2026-09-27.19';
+var CODE_VERSION = '2026-09-28.20';
 
 /**
  * Where a booking waits while its payment is in progress. Nothing reaches an
@@ -832,6 +832,112 @@ function markPaid_(session) {
 }
 
 /** Writes a payment onto a booking row, wherever that row lives. */
+/**
+ * Gmail allows a limited number of recipients a day, and a booking's
+ * confirmation costs three of them. Running out must not cost someone their
+ * confirmation: the reference is remembered and sent when the quota resets.
+ */
+var OWED_KEY = 'CONFIRMATIONS_OWED';
+
+function owedConfirmations_() {
+  try {
+    return JSON.parse(config_(OWED_KEY, '[]')) || [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function setOwedConfirmations_(list) {
+  PropertiesService.getScriptProperties()
+    .setProperty(OWED_KEY, JSON.stringify(list.filter(String).slice(0, 500)));
+}
+
+function queueConfirmation_(ref) {
+  var owed = owedConfirmations_();
+
+  if (owed.indexOf(ref) === -1) {
+    owed.push(ref);
+    setOwedConfirmations_(owed);
+  }
+}
+
+/** Enough headroom for one attendee plus the owner list? */
+function canEmail_(needed) {
+  try {
+    return MailApp.getRemainingDailyQuota() >= (needed || 1 + owners_().length);
+  } catch (error) {
+    return true;   // no quota reading available: try, and let the send decide
+  }
+}
+
+/** Send a booking's confirmation, or remember it for later. Never throws. */
+function sendPaidConfirmation_(booking, ref) {
+  if (!canEmail_()) {
+    console.warn('Email quota spent; confirmation for ' + ref + ' queued for tomorrow.');
+    queueConfirmation_(ref);
+    return false;
+  }
+
+  try {
+    emailAttendee_(booking, ref, 'paid');
+    notifyOwner_(booking, ref, 'PAID');
+    return true;
+  } catch (error) {
+    console.error('Could not send the confirmation for ' + ref + ': ' + error.message);
+    queueConfirmation_(ref);
+    return false;
+  }
+}
+
+/**
+ * Work through confirmations that could not be sent when the payment landed.
+ * Runs at the top of every sweep, so a quota that resets overnight clears the
+ * backlog on its own.
+ */
+function sendOwedConfirmations() {
+  var owed = owedConfirmations_();
+
+  if (!owed.length) {
+    return 'No confirmations owed.';
+  }
+
+  var stillOwed = [];
+  var sent = 0;
+
+  owed.forEach(function (ref) {
+    if (!canEmail_()) {
+      stillOwed.push(ref);
+      return;
+    }
+
+    var found = findByReference_(ref);
+
+    if (!found) {
+      console.warn('Owed a confirmation for ' + ref + ' but the booking is gone.');
+      return;
+    }
+
+    var values = found.sheet.getRange(found.row, 1, 1, COLUMNS.length).getValues()[0];
+
+    try {
+      emailAttendee_(rowToBooking_(values), ref, 'paid');
+      notifyOwner_(rowToBooking_(values), ref, 'PAID');
+      sent++;
+    } catch (error) {
+      console.error('Still could not confirm ' + ref + ': ' + error.message);
+      stillOwed.push(ref);
+    }
+  });
+
+  setOwedConfirmations_(stillOwed);
+
+  var report = sent + ' confirmation(s) sent late'
+    + (stillOwed.length ? ', ' + stillOwed.length + ' still waiting on the email quota.' : '.');
+
+  console.log(report);
+  return report;
+}
+
 function applyPayment_(found, session) {
   var sheet = found.sheet;
   var row = found.row;
@@ -854,10 +960,10 @@ function applyPayment_(found, session) {
     sheet.deleteRow(row);
   }
 
+  // The money is recorded above whatever happens next. An email that cannot be
+  // sent is queued, never dropped, and never allowed to stop the sweep.
   if (!alreadyPaid) {
-    var booking = rowToBooking_(values);
-    emailAttendee_(booking, ref, 'paid');
-    notifyOwner_(booking, ref, 'PAID');
+    sendPaidConfirmation_(rowToBooking_(values), ref);
   }
 
   rebuildDirectory();
@@ -1094,11 +1200,17 @@ function reconcilePaymentLinks() {
       return;
     }
 
-    applyPayment_(found, session);
-    matched++;
+    try {
+      applyPayment_(found, session);
+      matched++;
 
-    if (viaEmail) {
-      byEmail++;
+      if (viaEmail) {
+        byEmail++;
+      }
+    } catch (error) {
+      // One booking going wrong must not cost every payment behind it.
+      console.error('Could not apply ' + session.id + ': ' + error.message);
+      unmatched.push(session.id + ' (' + error.message + ')');
     }
   });
 
@@ -1184,6 +1296,14 @@ function dailyDigest() {
     warnings.push('Stripe is not configured, so nothing can be matched automatically.');
   }
 
+  var owedEmails = owedConfirmations_();
+
+  if (owedEmails.length) {
+    warnings.push(owedEmails.length + ' paid booking(s) still owed a confirmation email \u2014 '
+      + 'the daily Gmail limit was reached. They send themselves once it resets: '
+      + owedEmails.join(', '));
+  }
+
   events.forEach(function (event) {
     if (event.capacity === '' || event.capacity === null || event.capacity === undefined) {
       warnings.push('No capacity set on "' + event.name + '" \u2014 it cannot sell out.');
@@ -1234,6 +1354,8 @@ function reconcilePendingBookings() {
     return;
   }
 
+  // Anything owed from yesterday goes out before new sends eat the quota.
+  sendOwedConfirmations();
   reconcilePaymentLinks();
 
   var spreadsheet = book_();
