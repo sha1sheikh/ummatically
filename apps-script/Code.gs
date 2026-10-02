@@ -51,7 +51,7 @@ var EVENTS_SHEET = 'Events';
  * from outside which version is actually deployed — pasting the code is not
  * enough on its own, it has to be saved, and the web app redeployed.
  */
-var CODE_VERSION = '2026-09-28.21';
+var CODE_VERSION = '2026-10-02.22';
 
 /**
  * Where a booking waits while its payment is in progress. Nothing reaches an
@@ -495,11 +495,19 @@ function createBooking_(body) {
     appendBooking_(target, clean, ref, session);
 
     if (holding) {
-      // Tell the organisers as soon as the form is submitted — waiting for the
-      // money to land meant a booking could sit unseen for two days before it
-      // expired. markPaid_ follows up with [PAID] when payment arrives.
-      notifyOwner_(clean, ref, 'NEW — awaiting payment');
-      emailAttendee_(clean, ref, clean.payLink ? 'holding' : 'pending');
+      if (session) {
+        // They are being sent to Stripe this second, so nobody is told yet.
+        // Emailing here would mean four emails for one booking, two of them
+        // about a payment seconds away, and an inbox full of "awaiting
+        // payment" for people who simply closed the tab. Both sides hear
+        // when the money lands; anyone who never pays shows on "Pending
+        // payment" and in the digest.
+      } else {
+        // No checkout to send them to — they are paying some other way, and
+        // that could be days. The organisers need to know now.
+        notifyOwner_(clean, ref, 'NEW — awaiting payment');
+        emailAttendee_(clean, ref, 'holding');
+      }
     } else {
       notifyOwner_(clean, ref, session ? 'Awaiting payment' : (clean.offline ? 'TO INVOICE' : 'Enquiry'));
       emailAttendee_(clean, ref, session ? 'pending' : 'recorded');

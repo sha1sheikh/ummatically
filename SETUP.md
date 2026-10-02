@@ -366,17 +366,18 @@ Open the `/exec` URL with `?action=ping`. It reports `"stripe":"live"`,
 
 ## Who gets emailed, and when
 
-Four emails per paid booking — two the moment the form is submitted, two when
-the money arrives.
+Someone books, goes straight to Stripe, and pays. Two emails, both after the
+money lands.
 
 | When | Attendee gets | You get |
 |---|---|---|
-| They submit the form | **Pay to confirm your place** — with the payment button and the waiver attached | **[NEW — awaiting payment]** with all their details |
+| They submit the form | nothing — they are at the checkout | nothing |
 | They pay | **Your place is confirmed** | **[PAID]** |
+| They close the tab instead | nothing | nothing; it shows in the 7am digest and is released after two days |
 
-The second pair is sent by the payment sweep, so it follows the payment within
-about five minutes rather than instantly. For an event with no online payment
-you get one **[TO INVOICE]** email and they get **We have your booking request**.
+Nobody is written to while they are mid-payment. An event with no online
+payment still behaves as before: you get **[TO INVOICE]**, they get **We have
+your booking request**.
 
 ## Running it day to day
 
