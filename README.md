@@ -21,17 +21,21 @@ in Google Drive. Running `setUp` in the Apps Script project builds an Events ind
 Read me, one bookings tab per event, a Pending payment tab, and two gathered
 views — **All bookings** and **People** — so everyone can be seen in one place.
 
-Booking alerts go to `abuobaydahalyafawe@gmail.com` and
-`shawon.sheikh247@gmail.com` — change that via `DEFAULT_OWNERS` in
-`apps-script/Code.gs` or a `NOTIFY_EMAIL` script property.
+The 7am digest and unmatched-payment alerts go to
+`abuobaydahalyafawe@gmail.com` and `shawon.sheikh247@gmail.com` — change that
+via `DEFAULT_OWNERS` in `apps-script/Code.gs` or a `NOTIFY_EMAIL` script
+property.
 
 ## Booking flow
 
-Someone clicks **Book Now** → fills the form on the page → the booking waits on
-**Pending payment**, they get a "finish up" email and you get a
-**[NEW — awaiting payment]** alert → Stripe Checkout takes the
-payment → the booking moves onto its event's tab, both organisers are emailed,
-and the attendee gets their confirmation.
+Someone clicks **Book Now** → fills the form on the page → the place is held on
+**Pending payment** and they go straight to Stripe Checkout, with nobody
+emailed yet → they pay → the booking moves onto its event's tab and the
+attendee gets their confirmation.
+
+The organisers are not emailed per booking; the sheet is updated as it happens
+and the 7am digest gathers the day up. `OWNER_ALERTS=all` turns per-booking
+emails back on.
 
 An event's tab therefore lists people who have actually paid. Set
 `BOOKING_MODE=record-all` to record and email every attempt instead.

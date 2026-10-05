@@ -51,7 +51,7 @@ var EVENTS_SHEET = 'Events';
  * from outside which version is actually deployed — pasting the code is not
  * enough on its own, it has to be saved, and the web app redeployed.
  */
-var CODE_VERSION = '2026-10-05.23';
+var CODE_VERSION = '2026-10-05.24';
 
 /**
  * Where a booking waits while its payment is in progress. Nothing reaches an
@@ -128,11 +128,24 @@ function replyAddress_() {
 }
 
 /**
+ * Whether the organisers get an email per booking.
+ *
+ * Off by default: the spreadsheet is written the instant anything happens, and
+ * the 7am digest gathers the day up, so an email per booking only buries the
+ * ones that need a person. Set OWNER_ALERTS to "all" to turn them back on.
+ *
+ * Two things ignore this and always send, because nobody would otherwise know:
+ * money that arrived with no booking to attach it to, and the digest itself.
+ */
+function ownerAlerts_() {
+  return config_('OWNER_ALERTS', 'off') === 'all' ? 'all' : 'off';
+}
+
+/**
  * 'paid-only'  (default) an event's tab holds paid bookings only. Unpaid
- *              attempts wait on the Pending payment tab and the organisers are
- *              emailed when the payment lands, not before.
- * 'record-all' every attempt goes straight to the event's tab and emails the
- *              organisers immediately, paid or not.
+ *              attempts wait on the Pending payment tab and move across when
+ *              the payment lands, not before.
+ * 'record-all' every attempt goes straight to the event's tab, paid or not.
  *
  * Free events, and any booking taken while Stripe is not configured, always
  * behave as 'record-all' — there is no payment to wait for.
@@ -872,10 +885,15 @@ function queueConfirmation_(ref) {
 /** Enough headroom for one attendee plus the owner list? */
 function canEmail_(needed) {
   try {
-    return MailApp.getRemainingDailyQuota() >= (needed || 1 + owners_().length);
+    return MailApp.getRemainingDailyQuota() >= (needed || confirmationCost_());
   } catch (error) {
     return true;   // no quota reading available: try, and let the send decide
   }
+}
+
+/** Recipients one confirmation costs: the attendee, plus the owners if alerted. */
+function confirmationCost_() {
+  return 1 + (ownerAlerts_() === 'all' ? owners_().length : 0);
 }
 
 /** Send a booking's confirmation, or remember it for later. Never throws. */
@@ -1531,6 +1549,10 @@ function shell_(heading, intro, body, footer, action) {
 }
 
 function notifyOwner_(data, ref, state) {
+  if (ownerAlerts_() !== 'all') {
+    return;
+  }
+
   var subject = '[' + state + '] ' + data.name + ' — ' + data.eventTitle + ' (' + ref + ')';
 
   var body = rows_([

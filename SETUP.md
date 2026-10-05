@@ -214,8 +214,9 @@ Save, commit, and publish the site.
 > Google Form link — so the site never ends up with a dead button mid-setup.
 
 **Test it now, before touching Stripe.** Open the site, click **Book Now**, fill
-the form in, and submit. You should get an email, the attendee address should get
-one, and a row should appear on that event's own tab with status **Enquiry**.
+the form in, and submit. The attendee address should get an email and a row
+should appear on that event's own tab with status **Enquiry**. You will not get
+an email — that is deliberate; the sheet is the record.
 
 ---
 
@@ -344,9 +345,9 @@ Take the live key from Stripe (**Developers → API keys**, with the dashboard's
 test-mode toggle **off**; it starts `sk_live_`) and put it in Script Properties
 as `STRIPE_SECRET_KEY`, then **Deploy → Manage deployments → New version**.
 
-Nothing changes for the person booking. Both events are set to `offline`
-payment, so the script never opens a checkout session of its own — the swap
-only changes which Stripe account the sweep reads.
+Nothing changes for the person booking. The key is what the script uses both
+to open each checkout and to read the payments back, so a test key cannot see
+a real payment — get this one right before anything else.
 
 Afterwards run `reconcilePaymentLinks` by hand. It sweeps the last 100 real
 payments and confirms everyone who paid while the test key was in place.
@@ -366,18 +367,32 @@ Open the `/exec` URL with `?action=ping`. It reports `"stripe":"live"`,
 
 ## Who gets emailed, and when
 
-Someone books, goes straight to Stripe, and pays. Two emails, both after the
-money lands.
+Someone books, goes straight to Stripe, and pays. **One email goes out, to
+them.** You are not emailed per booking at all — it lands in the spreadsheet
+the moment it happens, and the 7am digest gathers the day up.
 
 | When | Attendee gets | You get |
 |---|---|---|
-| They submit the form | nothing — they are at the checkout | nothing |
-| They pay | **Your place is confirmed** | **[PAID]** |
+| They submit the form | nothing — they are at the checkout | nothing; the row appears on **Pending payment** |
+| They pay | **Your place is confirmed** | nothing; the row moves to the event tab, marked Paid |
 | They close the tab instead | nothing | nothing; it shows in the 7am digest and is released after two days |
 
-Nobody is written to while they are mid-payment. An event with no online
-payment still behaves as before: you get **[TO INVOICE]**, they get **We have
-your booking request**.
+The sheet is the record, so there is nothing to miss by not reading your inbox.
+Two things still email you, because nothing else would tell you:
+
+- **the 7am digest** — the whole day on one page
+- **`[ACTION NEEDED]`** — money arrived that could not be matched to any
+  booking. Somebody has paid and has no place; that one needs a person.
+
+### If you would rather have an email per booking
+
+Set `OWNER_ALERTS` to `all` in Script Properties (**Project Settings → Script
+properties**), then **Deploy → Manage deployments → New version**. You go back
+to getting one email per booking as well as the digest. Anything other than
+`all` — including leaving it out — means off.
+
+Be aware of the cost: each booking then uses three of the day's email
+recipients instead of one, and a consumer Gmail account only has 100 a day.
 
 ## Running it day to day
 
@@ -426,9 +441,9 @@ agree, and they agree on the **Event ID**.
 
 Add `data-event-payment="offline"` to its Book Now button. The form then says no
 payment is taken, the button reads **Send booking request**, and the booking is
-recorded as an **Enquiry** for you to chase — the organisers' email subject is
-tagged `[TO INVOICE]`. The price is still recorded against the booking. Remove
-the attribute to put the event back on Stripe.
+recorded as an **Enquiry** for you to chase, showing on the event's tab and in
+the digest. The price is still recorded against the booking. Remove the
+attribute to put the event back on Stripe.
 
 Add `data-event-pay-link="https://buy.stripe.com/…"` as well and the booking
 confirmation, and the attendee's email, carry a **Pay now** button straight to
@@ -545,8 +560,9 @@ update the sheet — change the status yourself.
 
 ### Turning payments off temporarily
 
-Delete the `STRIPE_SECRET_KEY` property and redeploy. Bookings still get recorded
-and emailed; they just come in as enquiries for you to invoice by hand.
+Delete the `STRIPE_SECRET_KEY` property and redeploy. Bookings are still
+recorded and the attendee still gets an email; they just come in as enquiries
+for you to invoice by hand.
 
 ---
 
