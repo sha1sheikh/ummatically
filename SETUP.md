@@ -381,6 +381,26 @@ your booking request**.
 
 ## Running it day to day
 
+### Capacity
+
+Set it on the website, not in the sheet. Each Book Now button carries
+`data-event-capacity`, and the nightly sync copies it into the Events tab the
+same way it copies the name and the price.
+
+```html
+data-event-capacity="15"
+```
+
+On an event running over several dates that is places **per date**: each date
+is its own row with its own tab, so 15 means 15 on every one of them.
+
+Change the number on the page, run `syncEventsFromSite`, and every row updates.
+A number typed into the sheet by hand is overwritten on the next sync — unless
+the page says nothing about that event, in which case the sheet's value stands.
+
+One booking is capped at ten places however much room there is, so a large
+group has to book more than once or email you.
+
 ### Changing the events on your website
 
 Edit `index.html` as normal, then let the sheet catch up. Two places have to

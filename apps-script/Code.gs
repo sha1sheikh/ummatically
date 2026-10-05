@@ -51,7 +51,7 @@ var EVENTS_SHEET = 'Events';
  * from outside which version is actually deployed — pasting the code is not
  * enough on its own, it has to be saved, and the web app redeployed.
  */
-var CODE_VERSION = '2026-10-02.22';
+var CODE_VERSION = '2026-10-05.23';
 
 /**
  * Where a booking waits while its payment is in progress. Nothing reaches an
@@ -2357,6 +2357,10 @@ function syncEventsFromSite() {
         sheet.getRange(row, eventColumnIndex_('Event Name')).setValue(event.title);
         sheet.getRange(row, eventColumnIndex_('Price')).setValue(event.price);
         sheet.getRange(row, eventColumnIndex_('Notes')).setValue('Added from the website.');
+
+        if (event.capacity !== '') {
+          sheet.getRange(row, eventColumnIndex_('Capacity')).setValue(event.capacity);
+        }
       }
 
       added.push(event.id);
@@ -2375,6 +2379,18 @@ function syncEventsFromSite() {
     if (event.price !== '' && Number(priceCell.getValue()) !== Number(event.price)) {
       priceCell.setValue(event.price);
       changes.push('price');
+    }
+
+    // Capacity is an event fact, so the site owns it like the name and price.
+    // Leave the cell alone when the page says nothing, so an event capped by
+    // hand in the sheet is not silently uncapped.
+    if (event.capacity !== '') {
+      var capacityCell = sheet.getRange(match.row, eventColumnIndex_('Capacity'));
+
+      if (Number(capacityCell.getValue()) !== Number(event.capacity)) {
+        capacityCell.setValue(event.capacity);
+        changes.push('capacity');
+      }
     }
 
     // A tab may not exist yet for an event added straight to the sheet.
@@ -2425,6 +2441,11 @@ function parseEventsFromHtml_(html) {
     var location = attribute('location');
     var unit = price === '' ? '' : Number(price);
 
+    // Places per date, not across the series: each date is its own event with
+    // its own tab, so a taster day capped at 15 means 15 on every date.
+    var capacityAttr = attribute('capacity');
+    var capacity = capacityAttr === '' ? '' : Number(capacityAttr);
+
     // An event that runs on several dates carries them as JSON. Each date is
     // its own event: its own row, its own tab, its own places.
     var sessions = parseSessions_(tag);
@@ -2441,6 +2462,7 @@ function parseEventsFromHtml_(html) {
           id: session.id,
           title: title + ' — ' + session.label,
           price: unit,
+          capacity: capacity,
           date: session.date,
           location: location
         });
@@ -2459,6 +2481,7 @@ function parseEventsFromHtml_(html) {
       id: id,
       title: title,
       price: unit,
+      capacity: capacity,
       date: attribute('date'),
       location: location
     });
