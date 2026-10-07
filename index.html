@@ -904,6 +904,24 @@ ul { margin: 0; padding: 0; list-style: none; }
 }
 .booking__total-note { flex-basis: 100%; font-size: .75rem; color: hsl(var(--muted-foreground)); }
 
+/*
+ * The one condition of booking that cannot be undone once the card is
+ * charged, so it sits immediately above the button that charges it rather
+ * than in a policy nobody opens.
+ */
+.booking__refund {
+  display: flex; gap: .75rem; align-items: flex-start;
+  padding: .875rem 1.125rem;
+  margin-bottom: 1.25rem;
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-left: 3px solid hsl(var(--accent));
+  font-size: .8125rem; line-height: 1.55;
+  color: hsl(var(--muted-foreground));
+}
+.booking__refund svg { width: 1.125rem; height: 1.125rem; flex: none; margin-top: .0625rem; color: hsl(var(--accent)); }
+.booking__refund strong { color: hsl(var(--foreground)); }
+
 .booking__submit[disabled] { opacity: .55; cursor: not-allowed; }
 .booking__status { margin-top: 1rem; font-size: .8125rem; text-align: center; }
 .booking__status--error { color: #b42318; }
@@ -1228,7 +1246,7 @@ ul { margin: 0; padding: 0; list-style: none; }
                 <li><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 2v20"/><path d="m4.9 7 14.2 8"/><path d="m4.9 17 14.2-8"/></svg><span>Ice plunge</span></li>
               </ul>
               <p>Brothers only, 16 and over. The location is private and shared with you once your place is confirmed.</p>
-              <p class="event-about__note"><strong>£120 per person. Limited spaces.</strong> Once your form is submitted your place is held, and confirmed as soon as you pay. We will follow up with kit list, directions and everything else you need to know. Questions first? Call or message us on <a href="tel:+447922381864">07922 381864</a>.<br><br>Jazakum Allah khayr.</p>
+              <p class="event-about__note"><strong>£120 per person, non-refundable.</strong> Once your form is submitted your place is held, and confirmed as soon as you pay. We will follow up with kit list, directions and everything else you need to know. Questions first? Call or message us on <a href="tel:+447922381864">07922 381864</a>.<br><br>Jazakum Allah khayr.</p>
             </div>
             <div class="event-card__facts">
               <div><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>Sat 10 – Sun 11 Oct 2026</span></div>
@@ -1269,7 +1287,7 @@ ul { margin: 0; padding: 0; list-style: none; }
                 <li><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Sisterhood</span></li>
               </ul>
               <p>Whether you’re completely new or already experienced, this is a great opportunity to learn new skills, build confidence, challenge yourself and enjoy a unique outdoor experience alongside other Muslims.</p>
-              <p class="event-about__note"><strong>£75 per person.</strong> Once your form is submitted your place is held, and confirmed as soon as you pay. We will follow up with everything else you need to know. Questions first? Call or message us on <a href="tel:+447922381864">07922 381864</a>.<br><br>Jazakum Allah khayr.</p>
+              <p class="event-about__note"><strong>£75 per person, non-refundable.</strong> Once your form is submitted your place is held, and confirmed as soon as you pay. We will follow up with everything else you need to know. Questions first? Call or message us on <a href="tel:+447922381864">07922 381864</a>.<br><br>Jazakum Allah khayr.</p>
             </div>
             <div class="event-card__facts">
               <div><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>8 dates · Sun 18 Oct – Sun 27 Dec 2026</span></div>
@@ -1778,7 +1796,7 @@ ul { margin: 0; padding: 0; list-style: none; }
           <p class="field__error" data-error-for="waiver" hidden></p>
           <div class="field field--check">
             <input id="booking-terms" name="terms" type="checkbox" required>
-            <label for="booking-terms">I confirm the details above are correct and I accept the booking terms and cancellation policy. <span class="req" aria-hidden="true">*</span></label>
+            <label for="booking-terms" data-terms-label>I confirm the details above are correct, and I understand the fee is non-refundable. <span class="req" aria-hidden="true">*</span></label>
           </div>
           <p class="field__error" data-error-for="terms" hidden></p>
           <div class="field field--check">
@@ -1793,6 +1811,8 @@ ul { margin: 0; padding: 0; list-style: none; }
         <dd data-booking-total>£0</dd>
         <p class="booking__total-note" data-booking-note>You'll be taken to our secure payment page to complete your booking.</p>
       </dl>
+
+      <p class="booking__refund" data-booking-refund><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg><span><strong>The fee is non-refundable.</strong> Once you have paid, we cannot refund your place if you are unable to attend. Please make sure the date works for you before you pay.</span></p>
 
       <button class="btn btn--accent btn--block booking__submit" type="submit" data-booking-submit>Continue to payment</button>
       <p class="booking__status" data-booking-status role="status" aria-live="polite" hidden></p>
@@ -2159,6 +2179,8 @@ window.UMMATICALLY_BOOKING = {
 	var places = dialog.querySelector('[data-booking-places]');
 	var totalOut = dialog.querySelector('[data-booking-total]');
 	var totalNote = dialog.querySelector('[data-booking-note]');
+	var refundNote = dialog.querySelector('[data-booking-refund]');
+	var termsLabel = dialog.querySelector('[data-terms-label]');
 	var lastTrigger = null;
 	var unitPrice = 0;
 	var sending = false;
@@ -2334,7 +2356,21 @@ window.UMMATICALLY_BOOKING = {
 	var syncTotal = function () {
 		var qty = parseInt(places.value, 10) || 1;
 
-		if (!unitPrice) {
+		// Nothing to be refunded on a free event, so the notice and the thing
+		// they tick both follow whether there is a fee at all.
+		var paying = !!unitPrice;
+
+		if (refundNote) {
+			refundNote.hidden = !paying;
+		}
+
+		if (termsLabel) {
+			termsLabel.innerHTML = paying
+				? 'I confirm the details above are correct, and I understand the fee is non-refundable. <span class="req" aria-hidden="true">*</span>'
+				: 'I confirm the details above are correct. <span class="req" aria-hidden="true">*</span>';
+		}
+
+		if (!paying) {
 			totalOut.textContent = 'Free';
 			return;
 		}
