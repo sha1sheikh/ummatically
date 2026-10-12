@@ -51,7 +51,7 @@ var EVENTS_SHEET = 'Events';
  * from outside which version is actually deployed — pasting the code is not
  * enough on its own, it has to be saved, and the web app redeployed.
  */
-var CODE_VERSION = '2026-10-05.24';
+var CODE_VERSION = '2026-10-12.25';
 
 /**
  * Where a booking waits while its payment is in progress. Nothing reaches an
@@ -2332,12 +2332,111 @@ function writePeople_(spreadsheet, rows) {
 }
 
 /**
+ * Take an event off the sheet for good, once it is off the website too.
+ *
+ * This is the other half of syncEventsFromSite, which only ever adds and
+ * updates. Removing a date has to be something you say out loud, because the
+ * sheet is the only record that someone booked.
+ *
+ * It refuses the moment there is anything to lose — a single row on the
+ * event's tab or on Pending payment, in any state, and the event stays
+ * exactly where it is. A place somebody holds is not ours to delete, and a
+ * cancelled row is the record of why they no longer hold one.
+ *
+ *   retireEvent('womens-taster-day-2026-10-18')
+ */
+function retireEvent(eventId) {
+  var id = String(eventId || '').trim();
+
+  if (!id) {
+    throw new Error('Which event? Run retireEvent("the-event-id"), '
+      + 'taking the id from the first column of the Events tab.');
+  }
+
+  var spreadsheet = book_();
+  var events = eventRows_();
+  var match = null;
+
+  for (var i = 0; i < events.length; i++) {
+    if (events[i].id === id) {
+      match = events[i];
+      break;
+    }
+  }
+
+  if (!match) {
+    return 'No event with the id "' + id + '" on the Events tab, so there is nothing to remove.';
+  }
+
+  var tab = match.tab ? spreadsheet.getSheetByName(match.tab) : null;
+  var booked = tab && tab.getLastRow() > 1 ? tab.getLastRow() - 1 : 0;
+  var holding = pendingRowsFor_(id);
+
+  if (booked || holding) {
+    throw new Error('"' + id + '" still has ' + booked + ' booking(s) on "' + match.tab
+      + '" and ' + holding + ' on Pending payment. Nothing has been removed. Refund or '
+      + 'move those people first, then run this again.');
+  }
+
+  // Two events are never given the same tab, but deleting the wrong one would
+  // take real bookings with it, so make sure before doing it.
+  var shared = false;
+
+  events.forEach(function (event) {
+    if (event.id !== id && event.tab && event.tab === match.tab) {
+      shared = true;
+    }
+  });
+
+  if (tab && !shared) {
+    spreadsheet.deleteSheet(tab);
+  }
+
+  spreadsheet.getSheetByName(EVENTS_SHEET).deleteRow(match.row);
+
+  // Deleting a row out of Events is exactly what turns the Summary's formulas
+  // into #REF!, so put it back now rather than leaving it for someone to find.
+  buildSummary_(spreadsheet);
+
+  return 'Removed "' + id + '"'
+    + (tab && !shared ? ' and its empty tab "' + match.tab + '"' : '')
+    + '. Take it off the website too, or the next sync will put it back.';
+}
+
+/** Every row on Pending payment for one event, whatever its status. */
+function pendingRowsFor_(eventId) {
+  var sheet = book_().getSheetByName(PENDING_SHEET);
+
+  if (!sheet || sheet.getLastRow() < 2) {
+    return 0;
+  }
+
+  var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, COLUMNS.length).getValues();
+  var idCol = columnIndex_('Event ID') - 1;
+  var count = 0;
+
+  rows.forEach(function (row) {
+    if (String(row[idCol]).trim() === eventId) {
+      count++;
+    }
+  });
+
+  return count;
+}
+
+/**
  * Reads the events off the live website and brings the Events tab into line:
  * new events get a row and a tab, renamed or repriced ones are updated, and
  * anything still in the sheet but gone from the site is reported so you can
  * decide whether it has simply finished.
  *
- * Your columns are left alone — Capacity is yours, and is never overwritten.
+ * Capacity follows the website when the Book Now button states one, so the
+ * page stays the single place you set it. An event the page says nothing
+ * about keeps whatever number you typed.
+ *
+ * It never deletes. An event vanishing from the page must not be able to take
+ * somebody's booking with it, so dropping a date for good is retireEvent().
+ *
  * Run it by hand after changing events, or let installTriggers() run it daily.
  */
 function syncEventsFromSite() {

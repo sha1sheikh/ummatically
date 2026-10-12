@@ -454,7 +454,8 @@ else is dropped rather than emailed out.
 **Pending payment** tab, counting against that date's capacity so nobody else
 can take it, and moves onto the event's own tab as **Paid** once the money
 lands. You are emailed then, not before. A hold that is not paid within two days
-is marked Expired and its place returns to the pool.
+is marked Expired and its place returns to the pool. Nobody is emailed while
+they are mid-payment.
 
 **Knowing who has paid.** The booking reference is appended to the payment link,
 so Stripe records it against the payment and the 5-minute sweep matches the two
@@ -482,19 +483,22 @@ row, its own bookings tab, and its own capacity — so 20 places on one Sunday
 does not use up the places on the next. Dates that fill up show as fully booked
 in the picker and cannot be chosen.
 
-Set Capacity on each of those rows after running the sync. Until you do they are
-uncapped.
+Give the button a `data-event-capacity` too and every date in the series gets
+that cap — `data-event-capacity="15"` means 15 places *on each date*, not 15
+shared between them.
 
 **Then run `syncEventsFromSite`** from the Apps Script function dropdown. It
 reads your published site and brings the Events tab into line:
 
 | On the site | In the sheet |
 |---|---|
-| A new event | Gets an Events row and its own bookings tab. Set its Capacity by hand |
-| A renamed or repriced event | Name and Price updated in place. Its tab and bookings are untouched |
-| An event you removed | Left alone and reported in the log. Past events keep their bookings |
+| A new event | Gets an Events row, its own bookings tab, and the capacity from its button |
+| A renamed or repriced event | Name, Price and Capacity updated in place. Its tab and bookings are untouched |
+| An event you removed | **Left exactly where it is**, and reported in the log — see below |
 
-It never overwrites **Capacity** — that column is yours.
+**The sync never deletes.** An event disappearing from the page must not be
+able to take somebody's booking with it, so taking a date off the website stops
+anyone booking it but leaves the sheet alone.
 
 It runs itself daily at 4am once you've done step 7, so you can also just edit
 the site and leave it. Run it by hand when you want the sheet updated now.
@@ -502,12 +506,43 @@ the site and leave it. Run it by hand when you want the sheet updated now.
 > It reads the **published** site at `SITE_URL`, not your local file. Publish
 > your changes first, or it will keep reading the old events.
 
-**Capacity is the one thing you set in the sheet, not on the site.** The event
-cards ask the sheet how many places are genuinely left and rewrite themselves on
-load, so the "spots remaining" figure follows your Capacity column rather than
-whatever is typed into the page. A full event's button becomes an inert
-"Fully booked". Once Places Held reaches it, the form turns people away and
-points them at you for the waiting list. Leave it blank for no limit.
+**Capacity is set on the site, and enforced by the sheet.** Put
+`data-event-capacity` on the Book Now button and the sync copies it into the
+Events column; the cards then ask the sheet how many places are genuinely left
+and rewrite themselves on load, so "spots remaining" follows real bookings. A
+full event's button becomes an inert "Fully booked". Once Places Held reaches
+the cap, the form turns people away and points them at you for the waiting
+list. An event whose button states no capacity keeps whatever you typed in the
+column, and a blank means no limit.
+
+#### Dropping a date for good
+
+Take it off the website first — remove it from `data-event-sessions`, and if
+the card itself led on that date, move `data-event-id` and `data-event-date` on
+to the next one. Publish. Nobody can book it from that moment.
+
+The sheet still has it, because the sync never deletes. To take it out too, run
+`retireEvent` from the function dropdown with the id in quotes:
+
+```
+retireEvent('womens-taster-day-2026-10-18')
+```
+
+It removes the Events row, deletes the event's bookings tab if it is empty, and
+rebuilds the Summary (deleting an Events row is exactly what turns those
+formulas into `#REF!`).
+
+**It refuses if anybody has booked.** One row on the event's tab or on Pending
+payment — in any state, cancelled included — and nothing is removed; it tells
+you how many and stops. Deal with those people first. A cancelled booking is
+the record of why someone does not have a place, so it counts too.
+
+If you would rather keep the history, do nothing: an event left on the Events
+tab with no button on the site is simply unbookable, and its bookings stay
+readable forever.
+
+> Check before you drop a date: open the `/exec` URL with `?action=availability`
+> and look at `held` for that event. `0` means nobody has booked it.
 
 > An event booked from the site but missing from the Events tab is added for you,
 > with a tab of its own and no capacity limit. So a typo in `data-event-id`
