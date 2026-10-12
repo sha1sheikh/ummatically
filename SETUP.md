@@ -538,10 +538,20 @@ It removes the Events row, deletes the event's bookings tab if it is empty, and
 rebuilds the Summary (deleting an Events row is exactly what turns those
 formulas into `#REF!`).
 
-**It refuses if anybody has booked.** One row on the event's tab or on Pending
-payment — in any state, cancelled included — and nothing is removed; it tells
-you how many and stops. Deal with those people first. A cancelled booking is
-the record of why someone does not have a place, so it counts too.
+**It refuses if anybody has booked.** Nothing is removed; it names what is in
+the way and what to do about it.
+
+| What it finds | Why it stops |
+|---|---|
+| Any row on the event's own tab | Somebody booked. Even a cancelled one is the record of why they have no place |
+| **Awaiting payment** on Pending payment | They are part-way through paying. Wait — a hold is marked Expired after two days |
+| **Expired** on Pending payment | Nobody paid, but a late payment still revives an expired hold. Set the row to **Cancelled** and it stops being able to come back |
+| Anything else on Pending payment | Most likely paid without being moved across. Look at it by hand |
+| **Cancelled** or **Refunded** on Pending payment | Does not stop it — these can never become a place again |
+
+Those last two are the only states that let it through, which is the point:
+Pending payment is staging, not history, so a hold that can never become a
+place should not keep a date alive forever.
 
 If you would rather keep the history, do nothing: an event left on the Events
 tab with no button on the site is simply unbookable, and its bookings stay

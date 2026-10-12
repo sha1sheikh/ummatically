@@ -51,7 +51,7 @@ var EVENTS_SHEET = 'Events';
  * from outside which version is actually deployed — pasting the code is not
  * enough on its own, it has to be saved, and the web app redeployed.
  */
-var CODE_VERSION = '2026-10-12.26';
+var CODE_VERSION = '2026-10-12.27';
 
 /**
  * Where a booking waits while its payment is in progress. Nothing reaches an
@@ -80,6 +80,12 @@ var EVENT_COLUMNS = [
 ];
 
 var CLOSED_STATUSES = ['Cancelled', 'Expired', 'Refunded'];
+
+/**
+ * The only two states a hold can be in and never become a place again.
+ * Expired is deliberately not among them: a late payment still revives one.
+ */
+var DEAD_HOLD_STATUSES = ['Cancelled', 'Refunded'];
 
 function config_(key, fallback) {
   var value = PropertiesService.getScriptProperties().getProperty(key);
@@ -2378,12 +2384,10 @@ function retireEvent(eventId) {
 
   var tab = match.tab ? spreadsheet.getSheetByName(match.tab) : null;
   var booked = tab && tab.getLastRow() > 1 ? tab.getLastRow() - 1 : 0;
-  var holding = pendingRowsFor_(id);
+  var holds = liveHoldsFor_(id);
 
-  if (booked || holding) {
-    throw new Error('"' + id + '" still has ' + booked + ' booking(s) on "' + match.tab
-      + '" and ' + holding + ' on Pending payment. Nothing has been removed. Refund or '
-      + 'move those people first, then run this again.');
+  if (booked || holds.awaiting || holds.expired || holds.other) {
+    throw new Error('Nothing has been removed. ' + blockedBy_(id, match.tab, booked, holds));
   }
 
   // Two events are never given the same tab, but deleting the wrong one would
@@ -2417,25 +2421,78 @@ function retireEvent(eventId) {
     + '. Take it off the website too, or the next sync will put it back.';
 }
 
-/** Every row on Pending payment for one event, whatever its status. */
-function pendingRowsFor_(eventId) {
+/**
+ * Holds on Pending payment that could still become a place.
+ *
+ * Only Cancelled and Refunded are counted as safe, and everything else blocks.
+ * Awaiting payment and Expired are the two reconcilePaymentLinks revives, so a
+ * late payment can still turn either into a confirmed booking; anything else
+ * found here is an anomaly — a Paid row that never made it across to its tab —
+ * and an anomaly around somebody's money is the last thing to wave through.
+ *
+ * Pending payment is staging rather than history, which is why a dead hold
+ * does not keep an event alive the way a row on its own tab does.
+ */
+function liveHoldsFor_(eventId) {
   var sheet = book_().getSheetByName(PENDING_SHEET);
+  var out = { awaiting: 0, expired: 0, other: 0 };
 
   if (!sheet || sheet.getLastRow() < 2) {
-    return 0;
+    return out;
   }
 
   var rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, COLUMNS.length).getValues();
   var idCol = columnIndex_('Event ID') - 1;
-  var count = 0;
+  var statusCol = columnIndex_('Status') - 1;
 
   rows.forEach(function (row) {
-    if (String(row[idCol]).trim() === eventId) {
-      count++;
+    if (String(row[idCol]).trim() !== eventId) {
+      return;
+    }
+
+    var status = String(row[statusCol]).trim();
+
+    if (DEAD_HOLD_STATUSES.indexOf(status) !== -1) {
+      return;
+    }
+
+    if (status === 'Awaiting payment') {
+      out.awaiting++;
+    } else if (status === 'Expired') {
+      out.expired++;
+    } else {
+      // Anything else here is off the beaten track — a Paid row that never
+      // made it across to its tab, say. Unexplained is not the same as safe.
+      out.other++;
     }
   });
 
-  return count;
+  return out;
+}
+
+/** Say what is in the way, and what to do about it. */
+function blockedBy_(id, tabName, booked, holds) {
+  if (booked) {
+    return booked + ' booking(s) for "' + id + '" are on "' + tabName
+      + '". Those are people with places. Move or refund them first.';
+  }
+
+  if (holds.other) {
+    return holds.other + ' row(s) for "' + id + '" are on Pending payment in a state '
+      + 'that does not belong there — most likely paid without being moved across. '
+      + 'Check them by hand before removing anything.';
+  }
+
+  if (holds.awaiting) {
+    return holds.awaiting + ' person(s) are part-way through paying for "' + id
+      + '". Wait for them to finish or give up — a hold is marked Expired after two '
+      + 'days — then run this again.';
+  }
+
+  return holds.expired + ' expired hold(s) for "' + id + '" are on Pending payment. '
+    + 'Nobody paid, but a late payment still revives an expired hold, which would '
+    + 'confirm somebody onto a date that is not running. Set those rows to '
+    + 'Cancelled on the Pending payment tab, then run this again.';
 }
 
 /**
