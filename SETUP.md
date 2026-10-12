@@ -521,12 +521,18 @@ Take it off the website first — remove it from `data-event-sessions`, and if
 the card itself led on that date, move `data-event-id` and `data-event-date` on
 to the next one. Publish. Nobody can book it from that moment.
 
-The sheet still has it, because the sync never deletes. To take it out too, run
-`retireEvent` from the function dropdown with the id in quotes:
+The sheet still has it, because the sync never deletes. To take it out too:
 
-```
-retireEvent('womens-taster-day-2026-10-18')
-```
+1. **Project Settings → Script properties → Add script property**
+   `RETIRE_EVENT_ID` = the event id, e.g. `womens-taster-day-2026-10-18`
+   (copy it from the first column of the Events tab)
+2. Back in the editor, pick **retireEvent** in the function dropdown and press
+   **Run**
+3. Read the execution log — it says exactly what it removed
+
+The two steps are because the Run button cannot pass arguments to a function.
+The property is cleared once the event is gone, so pressing Run again asks you
+to name one rather than reaching for whatever is left over.
 
 It removes the Events row, deletes the event's bookings tab if it is empty, and
 rebuilds the Summary (deleting an Events row is exactly what turns those

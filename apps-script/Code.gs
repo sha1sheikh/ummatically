@@ -51,7 +51,7 @@ var EVENTS_SHEET = 'Events';
  * from outside which version is actually deployed — pasting the code is not
  * enough on its own, it has to be saved, and the web app redeployed.
  */
-var CODE_VERSION = '2026-10-12.25';
+var CODE_VERSION = '2026-10-12.26';
 
 /**
  * Where a booking waits while its payment is in progress. Nothing reaches an
@@ -2343,14 +2343,22 @@ function writePeople_(spreadsheet, rows) {
  * exactly where it is. A place somebody holds is not ours to delete, and a
  * cancelled row is the record of why they no longer hold one.
  *
- *   retireEvent('womens-taster-day-2026-10-18')
+ * The Run button cannot pass arguments, so from the editor you name the event
+ * in a Script Property instead:
+ *
+ *   RETIRE_EVENT_ID = womens-taster-day-2026-10-18
+ *
+ * then run retireEvent. The property is cleared once the event is gone, so a
+ * stray second Run cannot reach for anything else.
  */
 function retireEvent(eventId) {
-  var id = String(eventId || '').trim();
+  var named = String(eventId || '').trim();
+  var id = named || String(config_('RETIRE_EVENT_ID', '')).trim();
 
   if (!id) {
-    throw new Error('Which event? Run retireEvent("the-event-id"), '
-      + 'taking the id from the first column of the Events tab.');
+    throw new Error('Which event? Add a Script Property RETIRE_EVENT_ID set to the '
+      + 'event id from the first column of the Events tab, then run this again. '
+      + '(From code: retireEvent("the-event-id").)');
   }
 
   var spreadsheet = book_();
@@ -2397,6 +2405,12 @@ function retireEvent(eventId) {
   // Deleting a row out of Events is exactly what turns the Summary's formulas
   // into #REF!, so put it back now rather than leaving it for someone to find.
   buildSummary_(spreadsheet);
+
+  // Done with it. Leaving the name lying around invites a second Run that
+  // means something else by now.
+  if (!named) {
+    PropertiesService.getScriptProperties().deleteProperty('RETIRE_EVENT_ID');
+  }
 
   return 'Removed "' + id + '"'
     + (tab && !shared ? ' and its empty tab "' + match.tab + '"' : '')
